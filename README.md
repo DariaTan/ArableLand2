@@ -1,7 +1,6 @@
 ## Dependencies
 
 * Dependencies are listed in environment.yml file.
-* ex. Windows 11
 
 ## Data
 
@@ -14,11 +13,11 @@ Pay attention the available years range in that source:
 
 ## Executing program
 
-[notebooks](https://github.com/DariTan/ArableLand/blob/master/notebooks) folder contains 3 independent scripts to run step by step.
-Every notebook has a cell with years used in modelling and testing
+[notebooks](https://github.com/DariTan/ArableLand/blob/master/notebooks) folder contains 2 independent scripts to run step by step.
+Every notebook has a cell with years used in modeling and testing
 1. [notebook_crop.ipynb](https://github.com/DariaTan/ArableLand/blob/master/notebooks/notebook_crop.ipynb)
 * loads data
-* performs some data analysis
+* plots distributions of climate variables and distribution of climate features condition on class - aquired/lost crop status
 * builds 2 models with slightly different set of features to predict the land status (binary classification task)
 * evaluates those models on test data (with some classification metrics output)
 * evaluates feature importances for both models
@@ -32,4 +31,4 @@ Every notebook has a cell with years used in modelling and testing
 * calculates production in future year and its relative change comparing to baseline
 
 
-[src](https://github.com/DariTan/ArableLand/blob/master/src) folder contains diverse .py modules for loading data, plotting and auxilary procedures
+[src](https://github.com/DariTan/ArableLand/blob/master/src) folder contains `load_data.py`, `plotting.py` and `utils.py` modules for loading data, plotting and auxilary procedures
