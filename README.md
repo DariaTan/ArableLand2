@@ -6,7 +6,7 @@
 ## Data
 
 The data was downloaded, preprocessed for the task and stored in .tif files. 
-It is available at [Google Drive Folder](https://drive.google.com/drive/folders/1reYmmjR6ckznwakdeLyAC6DVKp3Adp2y?usp=sharing). It is referred to as 'path' variable in notebooks.
+It is available at [Google Drive Folder](https://drive.google.com/drive/folders/1reYmmjR6ckznwakdeLyAC6DVKp3Adp2y?usp=sharing). It is referred to as ''path'' variable in notebooks.
 Pay attention the available years range in that source:
 * climate data is available from 1995 to 2020,
 * future climate data is available for year 2025 with 3 different CMIP5 simulations,
