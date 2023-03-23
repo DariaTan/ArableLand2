@@ -6,8 +6,8 @@
 
 From repo folder run:
 
-docker build -t crop_dev .
-docker run -it  -v  <CODE FOLDER>:/crop -v <DATA FOLDER>:/crop/Geo_data -m 16000m  --cpus=4  -w="/crop" crop_dev
+* docker build -t crop_dev .
+* docker run -it  -v  <CODE FOLDER>:/crop -v <DATA FOLDER>:/crop/Geo_data -m 16000m  --cpus=4  -w="/crop" crop_dev
 
 ## Data
 
