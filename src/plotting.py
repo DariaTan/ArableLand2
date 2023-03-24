@@ -211,12 +211,14 @@ def plot_trend_global(path, model, params_xgbс, y_baseline, **kwargs):
                              vmin=-1, vmax=1, alpha=0.6)
     ax.set_axis_off()
     ax.set_xlim(1100,3000)
+    ax.set_ylim(1150,0)
 
     # rasterio.plot.show(elv, ax=ax, cmap = plt.cm.terrain)
     # rasterio.plot.show(y_rect, alpha=0.4, cmap = "bwr_r")
     cax = make_axes_locatable(ax).append_axes("right", size="2%", pad=0.1)
     cbar = fig.colorbar(image_hidden, cax=cax)
     cbar.ax.set_yticklabels(['Risk', '','','','','','','','Potential'])
+    plt.show()
 
 
 def plot_trend(model_name1, model_name2,

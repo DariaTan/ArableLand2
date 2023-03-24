@@ -150,7 +150,6 @@ class classifier():
         """
         self.scores = utils.xgbc_scores_binary(self.xgbc_model, 
                                                self.X_test, self.y_test)
-        print('________________________________________________')
         print('Model with features', self.features)
         for k, v in self.scores.items():
             print(k, '=', v)

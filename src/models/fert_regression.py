@@ -46,19 +46,19 @@ def model(Fert, Total_area,
         model.fit(np.array(years).reshape(-1, 1), values_N)
         pred = model.predict(np.array(years_future_fert).reshape(-1, 1))
         ax[0].plot(years, values_N, label=name, color=c)
-        ax[0].plot(years_future_fert, pred, marker='.', color=c, linestyle='--')
+        ax[0].scatter(years_future_fert, pred, marker='.', color=c)
         Fert_future[prefix].append(pred[-1])
 
         model.fit(np.array(years).reshape(-1, 1), values_P205)
         pred = model.predict(np.array(years_future_fert).reshape(-1, 1))
         ax[1].plot(years, values_P205, label=name, color=c)
-        ax[1].plot(years_future_fert, pred, marker='.', color=c, linestyle='--')
+        ax[1].scatter(years_future_fert, pred, marker='.', color=c)
         Fert_future[prefix].append(pred[-1])
 
         model.fit(np.array(years).reshape(-1, 1), values_K2O)
         pred = model.predict(np.array(years_future_fert).reshape(-1, 1))
         ax[2].plot(years, values_K2O, label=name, color=c)
-        ax[2].plot(years_future_fert, pred, marker='.', color=c, linestyle='--')
+        ax[2].scatter(years_future_fert, pred, marker='.', color=c)
         Fert_future[prefix].append(pred[-1])
 
     ax[0].set_title('N')

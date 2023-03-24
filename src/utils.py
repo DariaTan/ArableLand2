@@ -200,18 +200,26 @@ def avg_future_pred(Climate_future, years_future,
         prediction_prob: [1d numpy array]
             Future predictions flattened    
     """
-    keys = list(Climate_future.keys())
-    prediction_prob = np.empty((Elv.shape[0]*Elv.shape[1]))
-    for i in range(len(keys)):
-        X_future, y_test, _, _ = collect_data(
-            Climate_future[keys[i]], years_future,
-            LC_feature, Elv, LC,
-            features, verbose=False)
+    # keys = list(Climate_future.keys())
+    # prediction_prob = np.empty((Elv.shape[0]*Elv.shape[1]))
 
-        prediction_prob += model.predict_proba(X_future)[:, 1]
-    prediction_prob = prediction_prob/len(keys)
+    # for i in range(len(keys)):
+    #     X_future, y_test, h, w = collect_data(
+    #         Climate_future[keys[i]], years_future,
+    #         LC_feature, Elv, LC,
+    #         features, verbose=False)
 
-    return prediction_prob, y_test
+    #     prediction = model.predict_proba(X_future)[:, 1]
+    #     prediction_prob = np.vstack((prediction_prob, prediction))
+
+    # prediction_prob = np.mean(prediction_prob, axis=0)
+
+    X_future, y_test, h, w = collect_data(Climate_future['CNRM-CM5'], years_future,
+                                          LC_feature, Elv,
+                                          LC, features, verbose=False)
+    prediction_prob = model.predict_proba(X_future)[:, 1]
+
+    return prediction_prob, y_test, h, w
 
 
 def changes2raster(model, model_name, features, Elv,
@@ -251,14 +259,14 @@ def changes2raster(model, model_name, features, Elv,
         three .tif files
     """
     # Compose dataset for the model
-    X_future, y_test, h, w = collect_data(Climate['CNRM-CM5'], years,
-                                          LC_feature, Elv,
-                                          LC, features, verbose=False)
-    prediction_prob = model.predict_proba(X_future)[:, 1]
+    # X_future, y_test, h, w = collect_data(Climate['CNRM-CM5'], years,
+    #                                       LC_feature, Elv,
+    #                                       LC, features, verbose=False)
+    # prediction_prob = model.predict_proba(X_future)[:, 1]
 
-    # prediction_prob = avg_future_pred(Climate, years, 
-    #                                       LC_feature, Elv, LC,
-    #                                       model, features)
+    prediction_prob, y_test, h, w = avg_future_pred(Climate, years, 
+                                                    LC_feature, Elv, LC,
+                                                    model, features)
     
     # See the difference between prediction and the baseline
     prediction = [1 if x >= thresh else 0 for x in prediction_prob]
@@ -607,3 +615,53 @@ def collect_future_data(path_faostat, data_production,
                                       ).astype(float)
                     X_future = np.vstack((X_future, array))
     return X_future
+
+
+def yield_outcome(xgbr, Y_test, X_future_rice,
+                  Total_area, neg_trend,
+                  prefixes):
+    """
+    Calculate the yield of the crop in the future
+
+    Parameters
+    ----------
+    Y_test : ndarray
+        Test data
+    X_future_rice : ndarray
+        Future data
+    Total_area : dict
+        Area data
+    neg_trend : dict
+        Negative trend data
+    prefixes : list(str)
+        Prefixes of countries
+    """
+    columns_df = ['Country', 'Area_reduction',
+                  'Yield_hist', 'Yield_future', 'Yield_ratio',
+                  'Prod_hist', 'Prod_future', 'Prod_ratio']
+    df = pd.DataFrame(columns=columns_df)
+    n_count = len(prefixes)
+    for i, prefix in enumerate(prefixes):
+        df.loc[i, 'Area_reduction'] = - neg_trend[prefix]
+
+        # yield historical
+        conditions = (Y_test[:, 3] == '2018') & (Y_test[:, 2] == prefix) & (Y_test[:, 4] == 'Rice')
+        prod_hist = int(float(Y_test[conditions][0, 1]))
+        df.loc[i, 'Country'] = prefix
+        df.loc[i, 'Yield_hist'] = np.round(float(Y_test[conditions][0,0]), 2)
+        df.loc[i, 'Prod_hist'] = prod_hist
+
+        # crop production in future
+        X_future_rice_local = X_future_rice[X_future_rice[:, -n_count+i] == 1]
+        yield_future = xgbr.predict(X_future_rice_local)
+        pred_future = yield_future*Total_area[prefix][2018]['Rice']*(1-neg_trend[prefix]/100)
+        df.loc[i, 'Prod_future'] = int(pred_future[0])
+        df.loc[i, 'Yield_future'] = np.round(yield_future[0],2)
+
+    df['Prod_ratio'] = (df['Prod_future'] - df['Prod_hist']) / df['Prod_hist']*100
+    df['Yield_ratio'] = (df['Yield_future'] - df['Yield_hist']) / df['Yield_hist']*100
+    df = df.astype({"Yield_ratio": np.float32, "Prod_ratio": np.float32})
+
+    df.Prod_ratio = df['Prod_ratio'].round(decimals=1)
+    df.Yield_ratio = df['Yield_ratio'].round(decimals=2)
+    return df

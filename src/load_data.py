@@ -1,4 +1,3 @@
-from osgeo import gdal
 import os
 import sys
 import csv
@@ -9,6 +8,7 @@ import rasterio
 
 sys.path.append('../src')
 import utils
+
 
 def elevation(path):
     """Collects elevation features
@@ -23,11 +23,9 @@ def elevation(path):
         Elv: 2d numpy array
             Elevation values of objects
     """
-    data = gdal.Open(path + 'Crop_Eurasia/Elv.tif')
-    raster = data.GetRasterBand(1)
-    Elv = raster.ReadAsArray(0, 0, data.RasterXSize, data.RasterYSize)
+    data = rasterio.open(path + 'Crop_Eurasia/Elv.tif')
+    Elv = data.read(1)
     data = None
-    print('Elevation data is collected')
     return Elv
 
 
@@ -50,18 +48,17 @@ def land_cover(path, year_start, **kwargs):
     year_stop = kwargs.get('year_stop', year_start+1)
     years_feature = np.arange(year_start, year_stop)
     LC = {keys: [] for keys in years_feature}
-    data = gdal.Open(path + 'Crop_Eurasia/LC_Type2.tif')
-    w = data.RasterXSize
-    h = data.RasterYSize
-    n_bands = data.RasterCount   # number of bands in tif
+    data = rasterio.open(path + 'Crop_Eurasia/LC_Type2.tif')
+
+    # Coun bands
+    n_bands = data.count
     bands = np.arange(1, n_bands+1)
 
     # Choose the required years (necessary bands) only
     for year in years_feature:
         for band in bands:
-            raster = data.GetRasterBand(int(band))
-            if str(year) == raster.GetDescription()[:4]:
-                raster = raster.ReadAsArray(0, 0, w, h)
+            if str(year) == data.descriptions[band-1][:4]:
+                raster = data.read(int(band))
                 # Switch to binary classification
                 raster = np.where(raster == 12, 1, 0)  # LC_type = 12 is cropland
                 LC[year] = raster
@@ -89,17 +86,14 @@ def land_cover_multi(path, year_start, **kwargs):
     year_stop = kwargs.get('year_stop', year_start+1)
     years_feature = np.arange(year_start, year_stop)
     LC = {keys: [] for keys in years_feature}
-    data = gdal.Open(path + 'Crop_Eurasia/LC_Type2.tif')
-    w = data.RasterXSize
-    h = data.RasterYSize
-    n_bands = data.RasterCount   # number of bands in tif
+    data = rasterio.open(path + 'Crop_Eurasia/LC_Type2.tif')
+    n_bands = data.count   # number of bands in tif
     bands = np.arange(1, n_bands+1)
     for year in years_feature:
         # Choose the required years (necessary bands) only
         for band in bands:
-            raster = data.GetRasterBand(int(band))
-            if str(year) == raster.GetDescription()[:4]:
-                raster = raster.ReadAsArray(0, 0, w, h)
+            if str(year) == data.descriptions[band-1][:4]:
+                raster = data.read(int(band))
                 LC[year] = raster
     data = None
     print('Land cover dictionary is collected for {} year(s)'.format(len(years_feature)))
@@ -133,23 +127,14 @@ def climate(path, year_start, **kwargs):
     scenario = CMIP + '_rcp45_'  # used for future climate
     flag_future = False
 
-    # Create mask to detect sea areas in train/test Climate (TerraClim dataset)
-    # Apply this mask to future Climate (NASA/NEx dataset)
-    # random precipitation and temperature data file:
-    for fn in os.listdir(path + 'Crop_Eurasia/Climate/'):
-        if 'pr' in fn:
-            pr_file = fn
-        elif 'tmmx' in fn:
-            temp_file = fn
-    raster1 = gdal.Open(path + 'Crop_Eurasia/Climate/' + pr_file)
-    raster2 = gdal.Open(path + 'Crop_Eurasia/Climate/' + temp_file)
-    w = raster1.RasterXSize  # raster width
-    h = raster1.RasterYSize  # raster height
-    sea_obj = (
-        raster1.GetRasterBand(1).ReadAsArray() == 0) & (
-        raster2.GetRasterBand(1).ReadAsArray() == 0)
-    
-    arr = np.empty((h, w, 0))  # empty array
+    # Create mask to detect sea areas
+    water_raster = rasterio.open(path + 'Crop_Eurasia/water_mask.tif')
+    water_mask = water_raster.read(1) == 1
+    w = water_raster.width  # raster width
+    h = water_raster.height  # raster height
+
+    # empty array
+    arr = np.empty((h, w, 0))  
     bio = ['bio1', 'bio2', 'bio3', 'bio4', 'bio5', 'bio6',
            'bio7', 'bio12', 'bio13', 'bio14', 'bio15']
     Climate = {keys: np.empty((h, w, 0)) for keys in bio}
@@ -172,31 +157,25 @@ def climate(path, year_start, **kwargs):
         for month in monthes:
             if flag_future:
                 ending = '_' + str(month) + '_avg.tif'
-                tmmx = gdal.Open(path_clim + 'tmmx_' + str(year) + ending)
-                raster_tmmx = tmmx.GetRasterBand(1).ReadAsArray(
-                0, 0, w, h)
-                tmmn = gdal.Open(path_clim + 'tmmn_' + str(year) + ending)
-                raster_tmmn = tmmn.GetRasterBand(1).ReadAsArray(
-                0, 0, w, h)
-                pr = gdal.Open(path_clim + 'pr_' + str(year) + ending)
-                raster_pr = pr.GetRasterBand(1).ReadAsArray(
-                0, 0, w, h)
-
-                # Apply mask for future data
-                raster_tmmx[sea_obj] = 0
-                raster_tmmn[sea_obj] = 0
-                raster_pr[sea_obj] = 0
+                tmmx = rasterio.open(path_clim + 'tmmx_' + str(year) + ending)
+                raster_tmmx = tmmx.read(1)
+                tmmn = rasterio.open(path_clim + 'tmmn_' + str(year) + ending)
+                raster_tmmn = tmmn.read(1)
+                pr = rasterio.open(path_clim + 'pr_' + str(year) + ending)
+                raster_pr = pr.read(1)
 
             else:
-                tmmx = gdal.Open(path_clim + 'tmmx_' + str(year) + '.tif')
-                raster_tmmx = tmmx.GetRasterBand(int(month)).ReadAsArray(
-                0, 0, w, h)
-                tmmn = gdal.Open(path_clim + 'tmmn_' + str(year) + '.tif')
-                raster_tmmn = tmmn.GetRasterBand(int(month)).ReadAsArray(
-                0, 0, tmmn.RasterXSize, tmmn.RasterYSize)
-                pr = gdal.Open(path_clim + 'pr_' + str(year) + '.tif')
-                raster_pr = pr.GetRasterBand(int(month)).ReadAsArray(
-                0, 0, pr.RasterXSize, pr.RasterYSize)
+                tmmx = rasterio.open(path_clim + 'tmmx_' + str(year) + '.tif')
+                raster_tmmx = tmmx.read(1)
+                tmmn = rasterio.open(path_clim + 'tmmn_' + str(year) + '.tif')
+                raster_tmmn = tmmn.read(1)
+                pr = rasterio.open(path_clim + 'pr_' + str(year) + '.tif')
+                raster_pr = pr.read(1)
+
+            # Apply water mask
+            raster_tmmx[water_mask] = 0
+            raster_tmmn[water_mask] = 0
+            raster_pr[water_mask] = 0
 
             t_avg = (raster_tmmx + raster_tmmn)/2
 
@@ -391,7 +370,8 @@ def climate_for_yield(path, prefixes, country_names, vars, years, years_future, 
 
             for var in vars:
                 fname = '{}_{}.tif'.format(var, year)
-                # utils.crop_raster(path_econ+prefix+'_'+fname, path_climate+fname, n_months, shapes, path)
+                utils.crop_raster(path_econ+prefix+'_'+fname, 
+                                  path_climate+fname, n_months, shapes, path)
 
                 # Calculate variables over the country
                 with rasterio.open(path_econ+prefix+'_'+fname) as tif:
@@ -411,7 +391,8 @@ def climate_for_yield(path, prefixes, country_names, vars, years, years_future, 
 
             for var in vars:
                 fname = 'CNRM-CM5_rcp45_{}_{}.tif'.format(var, year)
-                # utils.crop_raster(path_econ+prefix+'_'+fname[15:], path_climate_future+fname, n_months, shapes, path)
+                utils.crop_raster(path_econ+prefix+'_'+fname[15:], 
+                                  path_climate_future+fname, n_months, shapes, path)
 
                 # Calculate average over the country
                 with rasterio.open(path_econ+prefix+'_'+fname[15:]) as tif:
