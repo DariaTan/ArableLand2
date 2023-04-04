@@ -325,6 +325,49 @@ def fertilizers(path, csv_fert, prefixes, country_names, years):
     return Fert
 
 
+def production(path_faostat, data_production,
+               prefixes, country_names,
+               Total_area, years):
+    """Yields rolling mean of Y_train and Y_test
+
+    Parameters:
+    --------
+        path_faostat: str
+            Path to the folder with faostat data
+        data_production: str
+            Production data file name
+        prefixes: List[str]
+            Short country names used in shapefiles
+        country_name: List[str]
+            Normal spelling of country
+        Total_area: List[float]
+            Total area of each country
+        years: List[int]
+            Years to plot
+    Returns:
+    --------
+        Y: ndarray
+            Array with data collected from the production source
+    """
+    Y = np.zeros((0, 5))
+
+    reader = csv.reader(open(path_faostat+data_production, 'r'))
+
+    # Collect data
+    for data in reader:
+        country_prod = data[0]
+        crop_prod = data[1]
+        year_prod = int(data[2])
+
+        for prefix, country_name in zip(prefixes, country_names):
+            if (country_name in country_prod) & (year_prod <= years[-1]):
+                crop_area = Total_area[prefix][year_prod]['Rice']
+
+                Y = np.vstack((Y, [float(data[3])/crop_area, float(data[3]),
+                                   prefix, year_prod, crop_prod]))
+    return Y
+
+
 def climate_for_yield(path, prefixes, country_names, vars, years, years_future, n_months):
     """
     Create croped .tiff files for each country
@@ -391,8 +434,8 @@ def climate_for_yield(path, prefixes, country_names, vars, years, years_future, 
 
             for var in vars:
                 fname = 'CNRM-CM5_rcp45_{}_{}.tif'.format(var, year)
-                utils.crop_raster(path_econ+prefix+'_'+fname[15:], 
-                                  path_climate_future+fname, n_months, shapes, path)
+                # utils.crop_raster(path_econ+prefix+'_'+fname[15:], 
+                #                   path_climate_future+fname, n_months, shapes, path)
 
                 # Calculate average over the country
                 with rasterio.open(path_econ+prefix+'_'+fname[15:]) as tif:

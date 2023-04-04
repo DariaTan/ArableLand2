@@ -20,7 +20,11 @@ from matplotlib.colors import LinearSegmentedColormap
 from descartes import PolygonPatch
 import seaborn as sns
 
+# Default plotting parameters
+font = {'size': 24}
+matplotlib.rc('font', **font)
 
+# Custom gradient map
 my_gradient = LinearSegmentedColormap.from_list('my_gradient', (
                                             (0.000, (0.898, 0.000, 0.000)),
                                             (0.250, (0.965, 0.604, 0.604)),
@@ -163,9 +167,9 @@ def plot_biovars_dist_changed(Climate_train, LC_train, LC_test):
     Biovars_train.loc[indices_to_free, 'lc'] = -1
 
     # Plot distributions
-    fig, axes = plt.subplots(2, 3, figsize=(28, 8))
+    fig, axes = plt.subplots(2, 3, figsize=(28, 10))
     axes = axes.ravel()
-    sns.set_style("whitegrid")
+    # sns.set_style("whitegrid")
 
     # Loop over biovariables
     for i, (var, name) in tqdm(enumerate(zip(biovars, biovars_names))):
@@ -174,14 +178,13 @@ def plot_biovars_dist_changed(Climate_train, LC_train, LC_test):
         sns.histplot(Biovars_train[var][Biovars_train['lc']==-1],
                      label='1--0', color='r', ax=axes[i], alpha=0.8, stat='density', bins=100)
 
-        axes[i].set_ylabel('Density', fontsize=18)
-        axes[i].set_xlabel('{}, {}'.format(name, var), fontsize=22)
-        axes[i].set_xticklabels(axes[i].get_xmajorticklabels(), fontsize=18)
-        axes[i].set_yticklabels(axes[i].get_ymajorticklabels(), fontsize=14)
+        axes[i].set_ylabel('Density', fontsize=28)
+        axes[i].set_xlabel('{}, {}'.format(name, var), fontsize=28)
+        # axes[i].set_xticklabels(axes[i].get_xmajorticklabels(), fontsize=20)
 
     # fig.suptitle('Train year climate biovariables distribution among objects changed their class from train to test year')
-    plt.tight_layout(rect=[0, 0.03, 1, 0.96])
-    plt.show()
+
+    plt.tight_layout(rect=[0, 0.05, 1, 0.94])
 
 
 def plot_trend_global(path, model, params_xgbс, y_baseline, **kwargs):
@@ -194,7 +197,8 @@ def plot_trend_global(path, model, params_xgbс, y_baseline, **kwargs):
     
     fig, ax = plt.subplots(figsize=(60, 25))
     if type(proba) == int:
-        y_pred = model.model(**params_xgbс).predict_proba(X)[:,1]
+        # y_pred = model.model(**params_xgbс).predict_proba(X)[:,1]
+        y_pred = model.xgbc_model.predict_proba(X)[:, 1]
 
     else:
         y_pred = proba
@@ -217,7 +221,7 @@ def plot_trend_global(path, model, params_xgbс, y_baseline, **kwargs):
     # rasterio.plot.show(y_rect, alpha=0.4, cmap = "bwr_r")
     cax = make_axes_locatable(ax).append_axes("right", size="2%", pad=0.1)
     cbar = fig.colorbar(image_hidden, cax=cax)
-    cbar.ax.set_yticklabels(['Risk', '','','','','','','','Potential'])
+    cbar.ax.set_yticklabels(['Risk', '','','','','','','','Potential'], fontsize=30)
     plt.show()
 
 
@@ -292,11 +296,13 @@ def plot_trend(model_name1, model_name2,
 
         # Tune labels and colorbar
         for ax in [ax1, ax2]:
-            ax.set_xlabel('Longitude', fontsize=18)
-            ax.set_ylabel('Latitude', fontsize=18)
+            ax.set_xlabel('Longitude')
+            ax.set_ylabel('Latitude')
+            ax.set_yticklabels(ax.get_ymajorticklabels(), fontsize=20)
+            ax.set_xticklabels(ax.get_xmajorticklabels(), fontsize=20)
             cax = make_axes_locatable(ax).append_axes("right", size="5%", pad=0.05)
             cbar = fig.colorbar(im, cax=cax)
-            cbar.ax.set_yticklabels(['Risk', '','','','','','','','Potential'])
+            cbar.ax.set_yticklabels(['Risk', '', '', '', '', '', '', '', 'Potential'], fontsize=26)
         plt.show()
 
     basic, raster1_proba, raster2_proba = None, None, None
@@ -344,7 +350,7 @@ def plot_feature_imp(model, features):
     ax.set_yticks(y_pos)
     ax.set_yticklabels(list(sorted_result[i][0] for i in range(len(sorted_result))))
     ax.set_title('Feature importance of the model with features {}'.format(features))
-    plt.show();
+    plt.show()
 
 
 def plot_shap(model, Climate, Elv, LC_feature, LC, years, features):
