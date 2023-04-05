@@ -446,7 +446,7 @@ def climate_for_yield(
             for var in vars:
                 fname = "CNRM-CM5_rcp45_{}_{}.tif".format(var, year)
                 utils.crop_raster(
-                    path_econ + prefix + "_" + fname[15:],
+                    path_econ + prefix + "_" + fname,
                     path_climate_future + fname,
                     n_months,
                     shapes,
@@ -454,7 +454,7 @@ def climate_for_yield(
                 )
 
                 # Calculate average over the country
-                with rasterio.open(path_econ + prefix + "_" + fname[15:]) as tif:
+                with rasterio.open(path_econ + prefix + "_" + fname) as tif:
                     for band in np.arange(1, tif.count + 1):
                         if var == "pr":
                             arr = tif.read(int(band)).ravel().astype(np.float32) + 0.001

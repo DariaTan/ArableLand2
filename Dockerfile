@@ -1,11 +1,20 @@
-FROM conda/miniconda3
-RUN conda clean --all
+FROM continuumio/miniconda3
 
-# Install dependencies
-RUN apt-get update && apt-get install -y wget\
-    && apt-get clean \
-    && rm -rf /var/lib/apt/lists/*
+WORKDIR /app
 
-COPY requirements.txt ./requirements.txt
-# Install requirements
-RUN pip install -r requirements.txt
+# Create the environment:
+COPY environments/environment.yml .
+COPY . .
+RUN conda env create -f environment.yml
+
+# Make RUN commands use the new environment:
+RUN echo "conda activate al2" >> ~/.bashrc
+SHELL ["/bin/bash", "--login", "-c"]
+
+# Demonstrate the environment is activated:
+RUN echo "Make sure numpy is installed:"
+RUN python -c "import numpy"
+
+# The code to run when container is started:
+# COPY run.py entrypoint.sh ./
+# ENTRYPOINT ["./entrypoint.sh"]

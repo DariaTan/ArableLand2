@@ -7,6 +7,12 @@ import pandas as pd
 import matplotlib.pyplot as plt
 import csv
 from sklearn.metrics import balanced_accuracy_score, roc_auc_score, recall_score, precision_score, precision_recall_curve
+import matplotlib
+
+# Default plotting parameters
+font = {'size': 30}
+matplotlib.rc('font', **font)
+
 
 def collect_data(Climate, years, LC_feature, Elv, LC, features, verbose=False):
     """Collects data
@@ -80,7 +86,7 @@ def xgbc_scores_binary(clf, X_test, y_test):
 
     Parameters:
     --------
-        clf: xgbc model]
+        clf: xgbc model
             Prefitted model
         X_test: 2d numpy array
             All the instances with attributes
@@ -92,9 +98,6 @@ def xgbc_scores_binary(clf, X_test, y_test):
         scores: Dict[str, float]
     """
     pred_proba = clf.predict_proba(X_test)[::, 1]
-    # file_name = 'proba_{}.tif'.format(years_test[0])
-    # with rasterio.open(file_name, 'w', **template.meta) as dest:
-    #     dest.write(pred_proba.reshape(clf.h, clf.w).astype(rasterio.float32), 1)
     precision, recall, thresholds = precision_recall_curve(y_test,
                                                            pred_proba)
     # locate the index of the largest f score
@@ -177,7 +180,7 @@ def array2raster(file_name, array, path):
 
 def avg_future_pred(Climate_future, years_future,
                     LC_feature, Elv, LC,
-                    model, features):
+                    clf, features):
     """Calculates average future predictions
 
     Parameters:
@@ -188,10 +191,12 @@ def avg_future_pred(Climate_future, years_future,
             Years included in Climate_future
         LC_features: Dict
             Features of the LC model
-        Elv: Dict
+        Elv: ndarray
             Elevation data
         LC: Dict
             LC model
+        clf: xgbc model
+            Prefitted model
         features: list[str]
             Features of the model
 
@@ -200,36 +205,24 @@ def avg_future_pred(Climate_future, years_future,
         prediction_prob: [1d numpy array]
             Future predictions flattened    
     """
-    # keys = list(Climate_future.keys())
-    # prediction_prob = np.empty((Elv.shape[0]*Elv.shape[1]))
-
-    # for i in range(len(keys)):
-    #     X_future, y_test, h, w = collect_data(
-    #         Climate_future[keys[i]], years_future,
-    #         LC_feature, Elv, LC,
-    #         features, verbose=False)
-
-    #     prediction = model.predict_proba(X_future)[:, 1]
-    #     prediction_prob = np.vstack((prediction_prob, prediction))
-
-    # prediction_prob = np.mean(prediction_prob, axis=0)
-
-    X_future, y_test, h, w = collect_data(Climate_future['CNRM-CM5'], years_future,
+    X_future, y_test, h, w = collect_data(Climate_future['CNRM-CM5'],
+                                          years_future,
                                           LC_feature, Elv,
                                           LC, features, verbose=False)
-    prediction_prob = model.predict_proba(X_future)[:, 1]
+    prediction_prob = clf.predict_proba(X_future)[:, 1]
 
     return prediction_prob, y_test, h, w
 
 
-def changes2raster(model, model_name, features, Elv,
-                   LC_feature, Climate, LC, years, year_current, path, path_pics, thresh):
+def changes2raster(clf, model_name, features, Elv,
+                   LC_feature, Climate, LC,
+                   years, year_current, path, path_pics, thresh):
     """Plots on the map coloured pixels showing positive/ negative changes
        Compared with LC baseline
 
     Parameters:
     --------
-        model:XGBClassifier model
+        clf: XGBClassifier model
             Prefitted model
         model_name: str
             Model name
@@ -259,15 +252,10 @@ def changes2raster(model, model_name, features, Elv,
         three .tif files
     """
     # Compose dataset for the model
-    # X_future, y_test, h, w = collect_data(Climate['CNRM-CM5'], years,
-    #                                       LC_feature, Elv,
-    #                                       LC, features, verbose=False)
-    # prediction_prob = model.predict_proba(X_future)[:, 1]
-
-    prediction_prob, y_test, h, w = avg_future_pred(Climate, years, 
+    prediction_prob, y_test, h, w = avg_future_pred(Climate, years,
                                                     LC_feature, Elv, LC,
-                                                    model, features)
-    
+                                                    clf, features)
+
     # See the difference between prediction and the baseline
     prediction = [1 if x >= thresh else 0 for x in prediction_prob]
     y_proba = prediction_prob - y_test
@@ -303,6 +291,8 @@ def crop_raster(file_name, source_tif, count, shapes, path):
             New file name
         source_tif: str
             Original tif file to crop
+        count: int
+            Number of bands
         shapes:
             Array of shapes defining country border
         path: str
@@ -310,7 +300,7 @@ def crop_raster(file_name, source_tif, count, shapes, path):
 
     Returns:
     --------
-        .tif file
+        Saves the results to .tif file
     """
     # Random source file to copy geodata for creating GeoTiff
     fn = os.listdir(path+'Crop_Eurasia/Climate_future')[-1]
@@ -352,7 +342,7 @@ def crop_country(model_name, prefixes, country_names, path, path_pics, year):
 
     Returns:
     --------
-        3.tif files for every country
+        Saves the results to 3.tif files for every country
     """
     for prefix, country_name in zip(prefixes, country_names):
         # Load administrative borders
@@ -374,23 +364,15 @@ def crop_country(model_name, prefixes, country_names, path, path_pics, year):
                     path_pics + model_name + f'/changes_{year}.tif', 1, shapes, path)
 
 
-def yield_rolling_mean(path_faostat, data_production,
-                       prefixes, country_names,
-                       Total_area, years, **kwargs):
+def yield_rolling_mean(Production, prefixes, years, **kwargs):
     """Yields rolling mean of Y_train and Y_test
 
     Parameters:
     --------
-        path_faostat: str
-            Path to the folder with faostat data
-        data_production: str
-            Production data file name
+        Production: ndarray
+            Production data for year, crop, country
         prefixes: List[str]
-            Short country names used in shapefiles
-        country_name: List[str]
-            Normal spelling of country
-        Total_area: List[float]
-            Total area of each country
+            Short country names
         years: List[int]
             Years to plot
     Returns:
@@ -398,30 +380,20 @@ def yield_rolling_mean(path_faostat, data_production,
         Yeild: Dict
             Dictionary with rolling mean of Y_train and Y_test
     """
+    # Rolling mean window parameter
     window = kwargs.get('window', 2)
-    Y = np.zeros((0, 5))
-    plt.figure(figsize=(15, 6))
-    reader = csv.reader(open(path_faostat+data_production, 'r'))
 
-    # Collect data
-    for data in reader:
-        country_prod = data[0]
-        crop_prod = data[1]
-        year_prod = int(data[2])
-
-        for prefix, country_name in zip(prefixes, country_names):
-            if (country_name in country_prod) & (year_prod <= years[-1]):
-                crop_area = Total_area[prefix][year_prod]['Rice']
-
-                Y = np.vstack((Y, [float(data[3])/crop_area, float(data[3]),
-                                   prefix, year_prod, crop_prod]))
-
+    plt.figure(figsize=(30, 12))
     Yield = dict.fromkeys(prefixes)
 
-    for prefix in prefixes: 
+    # Country data for rice
+    for prefix in prefixes:
         c = np.random.rand(3,)
-        Y_prefix = Y[(Y[:, 2] == prefix) & (Y[:, 4] == 'Rice')]
+        Y_prefix = Production[(Production[:, 2] == prefix) &
+                              (Production[:, 4] == 'Rice')]
+        # years available
         years_country = pd.Series(list(map(int, Y_prefix[:, 3])))
+        # yield available
         yield_country = pd.Series(list(map(float, Y_prefix[:, 0])),
                                   index=years)
         yield_country = yield_country.rolling(window=window,
@@ -431,10 +403,77 @@ def yield_rolling_mean(path_faostat, data_production,
         Yield[prefix] = yield_country
     plt.legend(bbox_to_anchor=(1.04, 0.83), loc='center left')
     plt.suptitle('Rice yield')
-    plt.show()
 
     return Yield
 
+def fert_forecast(Fert, Total_area,
+                  prefixes, country_names,
+                  years, **kwargs):
+    """Plots fertilezers forecast
+
+    Parameters:
+    --------
+        Fert: Dict
+            Fert data for year, type, country
+        Total_area: Dict
+            Total arable area data for year, country
+        prefixes: List[str]
+            Short country names
+        country_names: List[str]
+            Normal spelling of country
+        years: List[int]
+            Years listed in FAOSTAT data
+    Returns:
+    --------
+        Fert_future: Dict
+    """
+    n_years = kwargs.get('n_years', 10)
+    years_future_fert = np.arange(years[-1], years[-1]+n_years)
+    # n_years = x#len(years_future_fert)
+    fig, ax = plt.subplots(nrows=1, ncols=3, figsize=(60, 20))
+    Fert_future = {keys: [] for keys in prefixes}
+
+    for prefix, name in zip(prefixes, country_names):
+        values_N, values_P205, values_K2O = [], [], []
+        c = np.random.rand(3,)
+        for year in years:
+            values_N.append(float(Fert[prefix][year][0])/Total_area[prefix][year]['total'])
+            values_P205.append(float(Fert[prefix][year][1])/Total_area[prefix][year]['total'])
+            values_K2O.append(float(Fert[prefix][year][2])/Total_area[prefix][year]['total'])
+
+        values_N_diff = values_N[-1] - values_N[-n_years]
+        values_N_future = np.copy(values_N[-n_years:]) + values_N_diff
+        ax[0].plot(years, values_N, label=name, color=c)
+        ax[0].plot(years_future_fert, values_N_future,
+                   marker='.', color=c, linestyle='--')
+        Fert_future[prefix].append(values_N_future)
+
+        values_P205_diff = values_P205[-1] - values_P205[-n_years]
+        values_P2O5_future = np.copy(values_P205[-n_years:]) + values_P205_diff
+        ax[1].plot(years, values_P205, label=name, color=c)
+        ax[1].plot(years_future_fert, values_P2O5_future,
+                   marker='.', color=c, linestyle='--')
+        Fert_future[prefix].append(values_P2O5_future)
+
+        values_K2O_diff = values_K2O[-1] - values_K2O[-n_years]
+        values_K2O_future = np.copy(values_K2O[-n_years:]) + values_K2O_diff
+        ax[2].plot(years, values_K2O, label=name, color=c)
+        ax[2].plot(years_future_fert, values_K2O_future,
+                   marker='.', color=c, linestyle='--')
+        Fert_future[prefix].append(values_K2O_future)
+
+    ax[0].set_xlabel('Year')
+    ax[1].set_xlabel('Year')
+    ax[2].set_xlabel('Year')
+    ax[0].set_ylabel('kg/ha')
+    ax[1].set_ylabel('kg/ha')
+    ax[2].set_ylabel('kg/ha')
+    ax[0].set_title('N')
+    ax[1].set_title('P2O5')
+    ax[2].set_title('K2O')
+    plt.legend(bbox_to_anchor=(0.35, 0.75), ncol=2)
+
+    return Fert_future
 
 def collect_data_yield(path_faostat, data_production,
                        prefixes, country_names,
@@ -484,6 +523,8 @@ def collect_data_yield(path_faostat, data_production,
         country_prod = data[0]
         crop_prod = data[1]
         year_prod = int(data[2])
+
+        const_0 = Trend.copy()
 
         for prefix, country_name in zip(prefixes, country_names):
             if (country_name in country_prod) & (year_prod <= years[-1]) & (year_prod >= years[1]):
@@ -588,8 +629,10 @@ def collect_future_data(path_faostat, data_production,
                     climate = Climate[prefix][years_future[0]]
                     climate_array = np.stack([climate[var] for var in vars],
                                              axis=1).reshape(1, -1, order='F')
-
-                    fert_array = Fert_future[prefix]
+                    fert_index = years_future[0] - years[-1]
+                    fert_array = [Fert_future[prefix][0][fert_index],
+                                  Fert_future[prefix][1][fert_index],
+                                  Fert_future[prefix][1][fert_index]]
 
                     time_trend = years_future[0] - years[0]
                     const_0 = Trend.copy()
@@ -619,7 +662,7 @@ def collect_future_data(path_faostat, data_production,
 
 def yield_outcome(xgbr, Y_test, X_future_rice,
                   Total_area, neg_trend,
-                  prefixes):
+                  prefixes, year_base):
     """
     Calculate the yield of the crop in the future
 
@@ -635,17 +678,20 @@ def yield_outcome(xgbr, Y_test, X_future_rice,
         Negative trend data
     prefixes : list(str)
         Prefixes of countries
+    year_base : int
+        Year of the base year
     """
     columns_df = ['Country', 'Area_reduction',
                   'Yield_hist', 'Yield_future', 'Yield_ratio',
                   'Prod_hist', 'Prod_future', 'Prod_ratio']
     df = pd.DataFrame(columns=columns_df)
     n_count = len(prefixes)
+
     for i, prefix in enumerate(prefixes):
         df.loc[i, 'Area_reduction'] = - neg_trend[prefix]
 
         # yield historical
-        conditions = (Y_test[:, 3] == '2018') & (Y_test[:, 2] == prefix) & (Y_test[:, 4] == 'Rice')
+        conditions = (Y_test[:, 3] == str(year_base)) & (Y_test[:, 2] == prefix) & (Y_test[:, 4] == 'Rice')
         prod_hist = int(float(Y_test[conditions][0, 1]))
         df.loc[i, 'Country'] = prefix
         df.loc[i, 'Yield_hist'] = np.round(float(Y_test[conditions][0,0]), 2)
@@ -654,7 +700,7 @@ def yield_outcome(xgbr, Y_test, X_future_rice,
         # crop production in future
         X_future_rice_local = X_future_rice[X_future_rice[:, -n_count+i] == 1]
         yield_future = xgbr.predict(X_future_rice_local)
-        pred_future = yield_future*Total_area[prefix][2018]['Rice']*(1-neg_trend[prefix]/100)
+        pred_future = yield_future*Total_area[prefix][year_base]['Rice']*(1-neg_trend[prefix]/100)
         df.loc[i, 'Prod_future'] = int(pred_future[0])
         df.loc[i, 'Yield_future'] = np.round(yield_future[0],2)
 

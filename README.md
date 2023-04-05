@@ -2,22 +2,46 @@
 
 * Dependencies are listed in environment.yml file.
 
+## Data
+
+The data was downloaded, preprocessed for the task and stored in .tif files. 
+It is available at [Google Drive Folder](https://drive.google.com/drive/folders/1reYmmjR6ckznwakdeLyAC6DVKp3Adp2y?usp=sharing). This folder is referred to as `path` variable in notebooks. 
+Prior to the running a docker container (see next section), the project directory should be organized as follows (tree depth is limited by 2):
+``` bash
+.
+├── Dockerfile
+├── Geo_data
+│   ├── Crop_Eurasia
+│   └── boundary
+├── README.md
+├── environments
+│   ├── environment.yml
+│   └── requirements.txt
+├── notebooks
+│   ├── crops_disappear_2019_2026.pickle
+│   ├── model_climate.pkl
+│   ├── model_climate_lc.pkl
+│   ├── notebook_crop.ipynb
+│   └── notebook_yield.ipynb
+└── src
+    ├── __pycache__
+    ├── load_data.py
+    ├── models
+    ├── plotting.py
+    └── utils.py
+```
+
+Pay attention the available years range in that source:
+* climate data is available from 1995 to 2020,
+* future climate data is available for year 2025 with 3 different CMIP5 simulations,
+* land cover data is available from 2001 to 2020,
+
 ## Docker
 
 From repo folder run:
 
 * `docker build -t crop_dev .`
 * `docker run -it  -v  <CODE FOLDER>:/crop -v <DATA FOLDER>:/crop/Geo_data -m 16000m  --cpus=4  -w="/crop" crop_dev`
-
-## Data
-
-The data was downloaded, preprocessed for the task and stored in .tif files. 
-It is available at [Google Drive Folder](https://drive.google.com/drive/folders/1reYmmjR6ckznwakdeLyAC6DVKp3Adp2y?usp=sharing). This folder is referred to as `path` variable in notebooks.
-Pay attention the available years range in that source:
-* climate data is available from 1995 to 2020,
-* future climate data is available for year 2025 with 3 different CMIP5 simulations,
-* land cover data is available from 2001 to 2020,
-
 ## Executing program
 
 [notebooks](https://github.com/DariTan/ArableLand/blob/master/notebooks) folder contains 2 independent scripts to run step by step.
