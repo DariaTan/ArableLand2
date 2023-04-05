@@ -6,7 +6,7 @@ from tqdm import tqdm
 import fiona
 import rasterio
 
-sys.path.append('../src')
+sys.path.append(os.path.join("..", "src"))
 import utils
 
 
@@ -23,7 +23,7 @@ def elevation(path):
         Elv: 2d numpy array
             Elevation values of objects
     """
-    data = rasterio.open(path + 'Crop_Eurasia/Elv.tif')
+    data = rasterio.open(os.path.join(path, "Crop_Eurasia", "Elv.tif"))
     Elv = data.read(1)
     data = None
     return Elv
@@ -45,25 +45,27 @@ def land_cover(path, year_start, **kwargs):
     --------
         LC: Dict[int, 2d numpy array]
     """
-    year_stop = kwargs.get('year_stop', year_start+1)
+    year_stop = kwargs.get("year_stop", year_start + 1)
     years_feature = np.arange(year_start, year_stop)
     LC = {keys: [] for keys in years_feature}
-    data = rasterio.open(path + 'Crop_Eurasia/LC_Type2.tif')
+    data = rasterio.open(os.path.join(path, "Crop_Eurasia", "LC_Type2.tif"))
 
     # Coun bands
     n_bands = data.count
-    bands = np.arange(1, n_bands+1)
+    bands = np.arange(1, n_bands + 1)
 
     # Choose the required years (necessary bands) only
     for year in years_feature:
         for band in bands:
-            if str(year) == data.descriptions[band-1][:4]:
+            if str(year) == data.descriptions[band - 1][:4]:
                 raster = data.read(int(band))
                 # Switch to binary classification
                 raster = np.where(raster == 12, 1, 0)  # LC_type = 12 is cropland
                 LC[year] = raster
     data = None
-    print('Land cover dictionary is collected for {} year(s)'.format(len(years_feature)))
+    print(
+        "Land cover dictionary is collected for {} year(s)".format(len(years_feature))
+    )
     return LC
 
 
@@ -83,20 +85,22 @@ def land_cover_multi(path, year_start, **kwargs):
     --------
         LC: Dict[int, 2d numpy array]
     """
-    year_stop = kwargs.get('year_stop', year_start+1)
+    year_stop = kwargs.get("year_stop", year_start + 1)
     years_feature = np.arange(year_start, year_stop)
     LC = {keys: [] for keys in years_feature}
-    data = rasterio.open(path + 'Crop_Eurasia/LC_Type2.tif')
-    n_bands = data.count   # number of bands in tif
-    bands = np.arange(1, n_bands+1)
+    data = rasterio.open(os.path.join(path, "Crop_Eurasia", "LC_Type2.tif"))
+    n_bands = data.count  # number of bands in tif
+    bands = np.arange(1, n_bands + 1)
     for year in years_feature:
         # Choose the required years (necessary bands) only
         for band in bands:
-            if str(year) == data.descriptions[band-1][:4]:
+            if str(year) == data.descriptions[band - 1][:4]:
                 raster = data.read(int(band))
                 LC[year] = raster
     data = None
-    print('Land cover dictionary is collected for {} year(s)'.format(len(years_feature)))
+    print(
+        "Land cover dictionary is collected for {} year(s)".format(len(years_feature))
+    )
     return LC
 
 
@@ -119,35 +123,46 @@ def climate(path, year_start, **kwargs):
         Climate: Dict[str, 2d numpy array]
         years: List[str]
     """
-    year_stop = kwargs.get('year_stop', year_start+1)
+    year_stop = kwargs.get("year_stop", year_start + 1)
     monthes = np.arange(1, 13)
     years = np.arange(year_start, year_stop)
-    CMIP = kwargs.get('CMIP', 'CMIP5')
+    CMIP = kwargs.get("CMIP", "CMIP5")
 
-    scenario = CMIP + '_rcp45_'  # used for future climate
+    scenario = CMIP + "_rcp45_"  # used for future climate
     flag_future = False
 
     # Create mask to detect sea areas
-    water_raster = rasterio.open(path + 'Crop_Eurasia/water_mask.tif')
+    water_raster = rasterio.open(os.path.join(path, "Crop_Eurasia", "water_mask.tif"))
     water_mask = water_raster.read(1) == 1
     w = water_raster.width  # raster width
     h = water_raster.height  # raster height
 
     # empty array
-    arr = np.empty((h, w, 0))  
-    bio = ['bio1', 'bio2', 'bio3', 'bio4', 'bio5', 'bio6',
-           'bio7', 'bio12', 'bio13', 'bio14', 'bio15']
+    arr = np.empty((h, w, 0))
+    bio = [
+        "bio1",
+        "bio2",
+        "bio3",
+        "bio4",
+        "bio5",
+        "bio6",
+        "bio7",
+        "bio12",
+        "bio13",
+        "bio14",
+        "bio15",
+    ]
     Climate = {keys: np.empty((h, w, 0)) for keys in bio}
 
     # Create pattern to reach the tif by name:
     # Historical data
     if year_start < 2020:
-        path_clim = path + 'Crop_Eurasia/Climate/'
+        path_clim = os.path.join(path, "Crop_Eurasia", "Climate")
 
     # Future data
     else:
         flag_future = True
-        path_clim = path + 'Crop_Eurasia/Climate_future/' + scenario
+        path_clim = os.path.join(path, "Crop_Eurasia", "Climate_future", scenario)
 
     # Numbers for specific year
     for year in tqdm(years):
@@ -156,20 +171,28 @@ def climate(path, year_start, **kwargs):
         # Numbers for specific month
         for month in monthes:
             if flag_future:
-                ending = '_' + str(month) + '_avg.tif'
-                tmmx = rasterio.open(path_clim + 'tmmx_' + str(year) + ending)
+                ending = "_" + str(month) + "_avg.tif"
+                tmmx = rasterio.open(
+                    os.path.join(path_clim, "tmmx_" + str(year) + ending)
+                )
                 raster_tmmx = tmmx.read(1)
-                tmmn = rasterio.open(path_clim + 'tmmn_' + str(year) + ending)
+                tmmn = rasterio.open(
+                    os.path.join(path_clim, "tmmn_" + str(year) + ending)
+                )
                 raster_tmmn = tmmn.read(1)
-                pr = rasterio.open(path_clim + 'pr_' + str(year) + ending)
+                pr = rasterio.open(os.path.join(path_clim, "pr_" + str(year) + ending))
                 raster_pr = pr.read(1)
 
             else:
-                tmmx = rasterio.open(path_clim + 'tmmx_' + str(year) + '.tif')
+                tmmx = rasterio.open(
+                    os.path.join(path_clim, "tmmx_" + str(year) + ".tif")
+                )
                 raster_tmmx = tmmx.read(1)
-                tmmn = rasterio.open(path_clim + 'tmmn_' + str(year) + '.tif')
+                tmmn = rasterio.open(
+                    os.path.join(path_clim, "tmmn_" + str(year) + ".tif")
+                )
                 raster_tmmn = tmmn.read(1)
-                pr = rasterio.open(path_clim + 'pr_' + str(year) + '.tif')
+                pr = rasterio.open(os.path.join(path_clim, "pr_" + str(year) + ".tif"))
                 raster_pr = pr.read(1)
 
             # Apply water mask
@@ -177,7 +200,7 @@ def climate(path, year_start, **kwargs):
             raster_tmmn[water_mask] = 0
             raster_pr[water_mask] = 0
 
-            t_avg = (raster_tmmx + raster_tmmn)/2
+            t_avg = (raster_tmmx + raster_tmmn) / 2
 
             # Bio1. Annual Mean Temperature
             bio1 = np.dstack((bio1, t_avg))
@@ -209,31 +232,51 @@ def climate(path, year_start, **kwargs):
             # the "1 +" is to avoid strange CVs for areas where mean rainfaill is < 1)
 
         # Accumulate 12 month numbers into that year
-        Climate['bio1'] = np.dstack((Climate['bio1'], np.mean(bio1, axis=2)))
-        Climate['bio2'] = np.dstack((Climate['bio2'], np.mean(bio2, axis=2)))
-        Climate['bio4'] = np.dstack((Climate['bio4'], np.std(bio4, axis=2)))
-        Climate['bio5'] = np.dstack((Climate['bio5'], np.max(bio5, axis=2)))
-        Climate['bio6'] = np.dstack((Climate['bio6'], np.min(bio6, axis=2)))
-        Climate['bio7'] = np.dstack((Climate['bio7'],
-                                    np.array(Climate['bio5'])[:, :, -1] - np.array(Climate['bio6'])[:, :, -1]))
-        Climate['bio12'] = np.dstack((Climate['bio12'], np.sum(bio12, axis=2)))
-        Climate['bio13'] = np.dstack((Climate['bio13'], np.max(bio12, axis=2)))
-        Climate['bio14'] = np.dstack((Climate['bio14'], np.min(bio12, axis=2)))
-        Climate['bio3'] = np.dstack((Climate['bio3'],
-                                    Climate['bio2'][:, :, -1] * 100 / (Climate['bio7'][:, :, -1] + np.ones((h, w))*1e-9)))  # add tiny value to avoid division by zero
-        Climate['bio15'] = np.dstack((Climate['bio15'],
-                                 (np.std(bio12, axis=2) / (1 + (Climate['bio12'][:, :, -1]) / 12))))
+        Climate["bio1"] = np.dstack((Climate["bio1"], np.mean(bio1, axis=2)))
+        Climate["bio2"] = np.dstack((Climate["bio2"], np.mean(bio2, axis=2)))
+        Climate["bio4"] = np.dstack((Climate["bio4"], np.std(bio4, axis=2)))
+        Climate["bio5"] = np.dstack((Climate["bio5"], np.max(bio5, axis=2)))
+        Climate["bio6"] = np.dstack((Climate["bio6"], np.min(bio6, axis=2)))
+        Climate["bio7"] = np.dstack(
+            (
+                Climate["bio7"],
+                np.array(Climate["bio5"])[:, :, -1]
+                - np.array(Climate["bio6"])[:, :, -1],
+            )
+        )
+        Climate["bio12"] = np.dstack((Climate["bio12"], np.sum(bio12, axis=2)))
+        Climate["bio13"] = np.dstack((Climate["bio13"], np.max(bio12, axis=2)))
+        Climate["bio14"] = np.dstack((Climate["bio14"], np.min(bio12, axis=2)))
+        Climate["bio3"] = np.dstack(
+            (
+                Climate["bio3"],
+                Climate["bio2"][:, :, -1]
+                * 100
+                / (Climate["bio7"][:, :, -1] + np.ones((h, w)) * 1e-9),
+            )
+        )  # add tiny value to avoid division by zero
+        Climate["bio15"] = np.dstack(
+            (
+                Climate["bio15"],
+                (np.std(bio12, axis=2) / (1 + (Climate["bio12"][:, :, -1]) / 12)),
+            )
+        )
 
     # Close raster
     tmmx = None
     tmmn = None
     pr = None
-    print('Output dictionary with climate includes {} biovariables accumulated for {} year(s)'.format(len(Climate), len(years)))
+    print(
+        "Output dictionary with climate includes {} biovariables accumulated for {} year(s)".format(
+            len(Climate), len(years)
+        )
+    )
     return Climate, years
 
 
-def arable_area(path, csv_arable, csv_arable_crops,
-                prefixes, country_names, years, crops):
+def arable_area(
+    path, csv_arable, csv_arable_crops, prefixes, country_names, years, crops
+):
     """
     Loads arable area from FAOSTAT .csv file
 
@@ -264,17 +307,17 @@ def arable_area(path, csv_arable, csv_arable_crops,
     for prefix in prefixes:
         Total_area[prefix] = {keys: {} for keys in years}
 
-    reader1 = csv.reader(open(path + csv_arable, 'r'))
-    reader2 = csv.reader(open(path + csv_arable_crops, 'r'))
+    reader1 = csv.reader(open(os.path.join(path, csv_arable), "r"))
+    reader2 = csv.reader(open(os.path.join(path, csv_arable_crops), "r"))
     for data in reader1:
-        if (data[1] == 'Arable land') & (int(data[2]) <= years[-1]):
+        if (data[1] == "Arable land") & (int(data[2]) <= years[-1]):
             country_prod = data[0]
             year_prod = int(data[2])
             crop_prod = float(data[4])
 
             for prefix, country_name in zip(prefixes, country_names):
-                if (country_name in country_prod):
-                    Total_area[prefix][year_prod]['total'] = crop_prod*1000
+                if country_name in country_prod:
+                    Total_area[prefix][year_prod]["total"] = crop_prod * 1000
 
     for data in reader2:
         country_prod = data[0]
@@ -317,15 +360,17 @@ def fertilizers(path, csv_fert, prefixes, country_names, years):
     for prefix, country_name in zip(prefixes, country_names):
         for year in years:
             Fert[prefix][year] = []
-            reader = csv.reader(open(path+csv_fert, 'r'))
+            reader = csv.reader(open(os.path.join(path, csv_fert), "r"))
             for data in reader:
                 if country_name in data[0]:
-                    val = data[year - years[0]+3]
+                    val = data[year - years[0] + 3]
                     Fert[prefix][year].append(float(val))
     return Fert
 
 
-def climate_for_yield(path, prefixes, country_names, vars, years, years_future, n_months):
+def climate_for_yield(
+    path, prefixes, country_names, vars, years, years_future, n_months
+):
     """
     Create croped .tiff files for each country
     Calculates climate data statistics based on:
@@ -346,7 +391,7 @@ def climate_for_yield(path, prefixes, country_names, vars, years, years_future, 
         List of years
     years_future : list[int]
         List of years in the future
-    n_months : int 
+    n_months : int
         Number of months to average over
 
     Returns
@@ -356,30 +401,39 @@ def climate_for_yield(path, prefixes, country_names, vars, years, years_future, 
     """
 
     Climate = {keys: {} for keys in prefixes}
-    path_climate = os.path.join(path, 'Crop_Eurasia/Climate', '')
-    path_climate_future = os.path.join(path, 'Crop_Eurasia/Climate_future', '')
-    path_econ = os.path.join(path, 'Crop_Eurasia/Economics', '')
+    path_climate = os.path.join(path, "Crop_Eurasia/Climate", "")
+    path_climate_future = os.path.join(path, "Crop_Eurasia/Climate_future", "")
+    path_econ = os.path.join(path, "Crop_Eurasia/Economics", "")
 
     for prefix, country_name in zip(prefixes, country_names):
         # Load administrative border
-        with fiona.open(path + f'boundary/gadm41_{prefix}_0.shx', "r") as sf:
+        with fiona.open(
+            os.path.join(path, "boundary", f"gadm41_{prefix}_0.shx"), "r"
+        ) as sf:
             shapes = [feature["geometry"] for feature in sf]
 
         for year in years:
             Climate[prefix][year] = {keys: [] for keys in vars}
 
             for var in vars:
-                fname = '{}_{}.tif'.format(var, year)
-                utils.crop_raster(path_econ+prefix+'_'+fname, 
-                                  path_climate+fname, n_months, shapes, path)
+                fname = "{}_{}.tif".format(var, year)
+                utils.crop_raster(
+                    path_econ + prefix + "_" + fname,
+                    path_climate + fname,
+                    n_months,
+                    shapes,
+                    path,
+                )
 
                 # Calculate variables over the country
-                with rasterio.open(path_econ+prefix+'_'+fname) as tif:
-                    for band in np.arange(1,tif.count+1):
-                        if var == 'pr':
-                            arr = tif.read(int(band)).ravel().astype(np.float32)+0.001
+                with rasterio.open(path_econ + prefix + "_" + fname) as tif:
+                    for band in np.arange(1, tif.count + 1):
+                        if var == "pr":
+                            arr = tif.read(int(band)).ravel().astype(np.float32) + 0.001
                         else:
-                            arr = (tif.read(int(band)).ravel()/10+273.15).astype(np.float32)
+                            arr = (tif.read(int(band)).ravel() / 10 + 273.15).astype(
+                                np.float32
+                            )
                         mask = arr != 0
                         av = np.ma.masked_where(~mask, arr).mean()
                         variance = np.var(arr)
@@ -390,17 +444,24 @@ def climate_for_yield(path, prefixes, country_names, vars, years, years_future, 
             Climate[prefix][year] = {keys: [] for keys in vars}
 
             for var in vars:
-                fname = 'CNRM-CM5_rcp45_{}_{}.tif'.format(var, year)
-                utils.crop_raster(path_econ+prefix+'_'+fname[15:], 
-                                  path_climate_future+fname, n_months, shapes, path)
+                fname = "CNRM-CM5_rcp45_{}_{}.tif".format(var, year)
+                utils.crop_raster(
+                    path_econ + prefix + "_" + fname[15:],
+                    path_climate_future + fname,
+                    n_months,
+                    shapes,
+                    path,
+                )
 
                 # Calculate average over the country
-                with rasterio.open(path_econ+prefix+'_'+fname[15:]) as tif:
-                    for band in np.arange(1, tif.count+1):
-                        if var == 'pr':
-                            arr = tif.read(int(band)).ravel().astype(np.float32)+0.001
+                with rasterio.open(path_econ + prefix + "_" + fname[15:]) as tif:
+                    for band in np.arange(1, tif.count + 1):
+                        if var == "pr":
+                            arr = tif.read(int(band)).ravel().astype(np.float32) + 0.001
                         else:
-                            arr = (tif.read(int(band)).ravel()/10+273.15).astype(np.float32)
+                            arr = (tif.read(int(band)).ravel() / 10 + 273.15).astype(
+                                np.float32
+                            )
                         mask = arr != 0
                         av = np.ma.masked_where(~mask, arr).mean()
                         variance = np.var(arr)

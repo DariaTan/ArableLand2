@@ -2,8 +2,9 @@ from tqdm import tqdm
 import numpy as np
 import pandas as pd
 import shap
+import os
 import sys
-sys.path.append('../src')
+sys.path.append(os.path.join('..', 'src'))
 import utils, load_data
 
 #Geospatial
@@ -29,7 +30,7 @@ my_gradient = LinearSegmentedColormap.from_list('my_gradient', (
                                             (1.000, (0.165, 0.494, 0.098))))
 
 # Shape f source raster
-Elv = load_data.elevation('../../Geo_data/')
+Elv = load_data.elevation(os.path.join('..', 'Geo_data'))
 h = Elv.shape[0]
 w = Elv.shape[1]
 
