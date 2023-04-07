@@ -157,8 +157,9 @@ def array2raster(file_name, array, path):
         .tif file
     """
     # Random source file to copy geodata for creating GeoTiff
-    fn = os.listdir(path+'/Crop_Eurasia/Climate_future')[-1]
-    template = rasterio.open(path + '/Crop_Eurasia/Climate_future/' + fn)
+    fn = os.listdir(os.path.join(path, "Crop_Eurasia/Climate_future", ""))[-1]
+    
+    template = rasterio.open(os.path.join(path, "Crop_Eurasia/Climate_future", fn, ""))
     dtype = array.dtype
     # set data type to save
     if dtype == "byte":
@@ -267,18 +268,20 @@ def changes2raster(clf, model_name, features, Elv,
     y_test = y_test.reshape(h, w)
 
     # Check if the folder for record exists
-    if os.path.exists(path_pics + model_name) is False:
-        os.makedirs(path_pics + model_name)
+    folder = os.path.join(path_pics, model_name)
+    if os.path.exists(folder) is False:
+        os.makedirs(folder)
 
     # Save as tif
     year = str(year_current)
-    array2raster(path_pics + model_name + f'/proba_{year}.tif',
+    
+    array2raster(os.path.join(folder, f"proba_{year}.tif"),
                  prediction_prob.reshape(h, w), path)
-    array2raster(path_pics + model_name + f'/changes_proba_{year}.tif',
+    array2raster(os.path.join(folder, f"changes_proba_{year}.tif"),
                  y_proba_rect, path)
-    array2raster(path_pics + model_name + f'/changes_{year}.tif',
+    array2raster(os.path.join(folder, f"changes_{year}.tif"),
                  y_rect, path)
-    array2raster(path_pics + 'basic.tif',
+    array2raster(os.path.join(path_pics, "basic.tif"),
                  y_test, path)
 
 
@@ -303,9 +306,9 @@ def crop_raster(file_name, source_tif, count, shapes, path):
         Saves the results to .tif file
     """
     # Random source file to copy geodata for creating GeoTiff
-    fn = os.listdir(path+'Crop_Eurasia/Climate_future')[-1]
+    fn = os.listdir(os.path.join(path, "Crop_Eurasia/Climate_future", ""))[-1]
 
-    template = rasterio.open(path + '/Crop_Eurasia/Climate_future/' + fn)
+    template = rasterio.open(os.path.join(path, "Crop_Eurasia/Climate_future", fn))
 
     # Crop the tif
     with rasterio.open(source_tif) as src:
@@ -346,22 +349,31 @@ def crop_country(model_name, prefixes, country_names, path, path_pics, year):
     """
     for prefix, country_name in zip(prefixes, country_names):
         # Load administrative borders
-        with fiona.open(path + f'boundary/gadm41_{prefix}_0.shx', "r") as sf:
+        with fiona.open(os.path.join(path, "boundary", f"gadm41_{prefix}_0.shx"), "r") as sf:
             shapes = [feature["geometry"] for feature in sf]
 
         # Crop the country pic with classes existed in historical year
-        crop_raster(path_pics + f'basic_{country_name}.tif', path_pics+'basic.tif', 1, shapes, path)
+        crop_raster(os.path.join(path_pics, f"basic_{country_name}.tif"),
+                    os.path.join(path_pics, "basic.tif"),
+                    1, shapes, path)
 
         # Check if the folder for record exists
-        if os.path.exists(path_pics + model_name) is False:
-            os.makedirs(path_pics + model_name)
+        folder = os.path.join(path_pics, model_name)
+        if os.path.exists(folder) is False:
+            os.makedirs(folder)
 
         # Crop the changes picture
         year = str(year)
-        crop_raster(path_pics + model_name + f'/changes_proba_{year}_{country_name}.tif',
-                    path_pics + model_name + f'/changes_proba_{year}.tif', 1, shapes, path)
-        crop_raster(path_pics + model_name + f'/changes_{year}_{country_name}.tif',
-                    path_pics + model_name + f'/changes_{year}.tif', 1, shapes, path)
+        crop_raster(os.path.join(folder,
+                                 f"changes_proba_{year}_{country_name}.tif"),
+                    os.path.join(folder,
+                                 f"changes_proba_{year}.tif"),
+                    1, shapes, path)
+        crop_raster(os.path.join(folder,
+                                 f"changes_{year}_{country_name}.tif"),
+                    os.path.join(folder,
+                                 f"changes_{year}.tif"),
+                    1, shapes, path)
 
 
 def yield_rolling_mean(Production, prefixes, years, **kwargs):
@@ -517,7 +529,7 @@ def collect_data_yield(path_faostat, data_production,
     Const_crop = {keys: 0 for keys in crops}
     Trend = {keys: 0 for keys in prefixes}
 
-    reader = csv.reader(open(path_faostat+data_production, 'r'))
+    reader = csv.reader(open(os.path.join(path_faostat, data_production), 'r'))
 
     for data in reader:
         country_prod = data[0]
@@ -616,7 +628,7 @@ def collect_future_data(path_faostat, data_production,
     Const_crop = {keys: 0 for keys in crops}
     Trend = {keys: 0 for keys in prefixes}
 
-    reader = csv.reader(open(path_faostat+data_production, 'r'))
+    reader = csv.reader(open(os.path.join(path_faostat, data_production), 'r'))
     for data in reader:
 
         if int(data[2]) == years[-1]:

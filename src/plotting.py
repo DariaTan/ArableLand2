@@ -192,8 +192,8 @@ def plot_trend_global(path, model, params_xgbс, y_baseline, **kwargs):
     X = kwargs.get('X', 0)
     # y_baseline = kwargs.get('y', 0)
     proba = kwargs.get('proba', 0)
-    
-    water = rasterio.open(path+'Crop_Eurasia/water_mask.tif')
+
+    water = rasterio.open(os.path.join(path, "/Crop_Eurasia", "water_mask.tif"))
     mask = water.read(1)
     
     fig, ax = plt.subplots(figsize=(60, 25))
@@ -263,18 +263,24 @@ def plot_trend(model_name1, model_name2,
         print(country_name)
 
         # Load administrative borders
-        with fiona.open(path + f'boundary/gadm41_{prefix}_0.shx', "r") as sf:
+        with fiona.open(os.path.join(path,
+                                     "boundary",
+                                     f"gadm41_{prefix}_0.shx"), "r") as sf:
             shapes = [feature["geometry"] for feature in sf]
         patches = [PolygonPatch(shape, edgecolor="black", facecolor="none", linewidth=1) for shape in shapes]
 
-        basic = rasterio.open(path_pics + f'/basic_{country_name}.tif')
+        basic = rasterio.open(os.path.join(path_pics, f"basic_{country_name}.tif"))
         _, counts = np.unique(basic.read(), return_counts=True)
         crop_initial[prefix] = counts[1]
 
         year = str(year)
-        raster1_proba = rasterio.open(path_pics + model_name1 + f'/changes_proba_{year}_{country_name}.tif')
-        raster2_proba = rasterio.open(path_pics + model_name2 + f'/changes_proba_{year}_{country_name}.tif')
-        raster2 = rasterio.open(path_pics + model_name2 + f'/changes_{year}_{country_name}.tif')
+        
+        raster1_proba = rasterio.open(os.path.join(path_pics + model_name1,
+                                                   f"changes_proba_{year}_{country_name}.tif"))
+        raster2_proba = rasterio.open(os.path.join(path_pics + model_name2,
+                                                   f"changes_proba_{year}_{country_name}.tif"))
+        raster2 = rasterio.open(os.path.join(path_pics + model_name2,
+                                             f"changes_{year}_{country_name}.tif"))
 
         _, counts = np.unique(raster2.read(), return_counts=True)
         negative_changes[prefix] = np.round(counts[0]/crop_initial[prefix]*100, 1)
@@ -416,7 +422,7 @@ def plot_changes(path_pics, model, year):
 
     fig, ax = plt.subplots(figsize=(20, 10))
 
-    basic = rasterio.open(path_pics + f'{model}/changes_proba_{year}.tif')
+    basic = rasterio.open(os.path.join(path_pics, f"{model}", f"changes_proba_{year}.tif"))
     im_hidden = ax.imshow(basic.read(1), cmap=my_gradient, vmin=-1, vmax=1)
     rasterio.plot.show(basic.read(1), 
                        transform=basic.transform,
