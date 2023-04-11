@@ -42,6 +42,7 @@ From repo folder run:
 
 * `docker build -t crop_dev .`
 * `docker run -it  -v  <CODE FOLDER>:/crop -v <DATA FOLDER>:/crop/Geo_data -m 16000m  --cpus=4  -w="/crop" crop_dev`
+* Inside the container run `sh download.sh` -- it will download all the data necessary from google drive, unpack it, delete the archived data
 ## Executing program
 
 [notebooks](https://github.com/DariTan/ArableLand/blob/master/notebooks) folder contains 2 independent scripts to run step by step.
