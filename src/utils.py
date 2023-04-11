@@ -158,8 +158,8 @@ def array2raster(file_name, array, path):
     """
     # Random source file to copy geodata for creating GeoTiff
     fn = os.listdir(os.path.join(path, "Crop_Eurasia/Climate_future", ""))[-1]
-    
-    template = rasterio.open(os.path.join(path, "Crop_Eurasia/Climate_future", fn, ""))
+
+    template = rasterio.open(os.path.join(path, "Crop_Eurasia/Climate_future", fn))
     dtype = array.dtype
     # set data type to save
     if dtype == "byte":
@@ -417,6 +417,7 @@ def yield_rolling_mean(Production, prefixes, years, **kwargs):
     plt.suptitle('Rice yield')
 
     return Yield
+
 
 def fert_forecast(Fert, Total_area,
                   prefixes, country_names,

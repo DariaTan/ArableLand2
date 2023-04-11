@@ -132,7 +132,9 @@ def climate(path, year_start, **kwargs):
     flag_future = False
 
     # Create mask to detect sea areas
-    water_raster = rasterio.open(os.path.join(path, "Crop_Eurasia", "water_mask.tif"))
+    water_raster = rasterio.open(os.path.join(path,
+                                              "Crop_Eurasia",
+                                               "water_mask.tif"))
     water_mask = water_raster.read(1) == 1
     w = water_raster.width  # raster width
     h = water_raster.height  # raster height
@@ -162,7 +164,8 @@ def climate(path, year_start, **kwargs):
     # Future data
     else:
         flag_future = True
-        path_clim = os.path.join(path, "Crop_Eurasia", "Climate_future", scenario)
+        path_clim = os.path.join(path, "Crop_Eurasia", "Climate_future")
+        # path_clim = os.path.join(path, "Crop_Eurasia", "Climate_future", scenario)
 
     # Numbers for specific year
     for year in tqdm(years):
@@ -171,29 +174,34 @@ def climate(path, year_start, **kwargs):
         # Numbers for specific month
         for month in monthes:
             if flag_future:
-                ending = "_" + str(month) + "_avg.tif"
-                tmmx = rasterio.open(
-                    os.path.join(path_clim, "tmmx_" + str(year) + ending)
-                )
+                ending = str(year) + "_" + str(month) + "_avg.tif"
+
+                fn = scenario + "tmmx_" + ending
+                tmmx = rasterio.open(os.path.join(path_clim, fn))
                 raster_tmmx = tmmx.read(1)
-                tmmn = rasterio.open(
-                    os.path.join(path_clim, "tmmn_" + str(year) + ending)
-                )
+
+                fn = scenario + "tmmn_" + ending
+                tmmn = rasterio.open(os.path.join(path_clim, fn))
                 raster_tmmn = tmmn.read(1)
-                pr = rasterio.open(os.path.join(path_clim, "pr_" + str(year) + ending))
+
+                fn = scenario + "pr_" + ending
+                pr = rasterio.open(os.path.join(path_clim, fn))
                 raster_pr = pr.read(1)
 
             else:
-                tmmx = rasterio.open(
-                    os.path.join(path_clim, "tmmx_" + str(year) + ".tif")
-                )
-                raster_tmmx = tmmx.read(1)
-                tmmn = rasterio.open(
-                    os.path.join(path_clim, "tmmn_" + str(year) + ".tif")
-                )
-                raster_tmmn = tmmn.read(1)
-                pr = rasterio.open(os.path.join(path_clim, "pr_" + str(year) + ".tif"))
-                raster_pr = pr.read(1)
+                ending = str(year) + ".tif"
+
+                fn = "tmmx_" + ending
+                tmmx = rasterio.open(os.path.join(path_clim, fn))
+                raster_tmmx = tmmx.read(int(month))
+
+                fn = "tmmn_" + ending
+                tmmn = rasterio.open(os.path.join(path_clim, fn))
+                raster_tmmn = tmmn.read(int(month))
+
+                fn = "pr_" + ending
+                pr = rasterio.open(os.path.join(path_clim, fn))
+                raster_pr = pr.read(int(month))
 
             # Apply water mask
             raster_tmmx[water_mask] = 0

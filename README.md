@@ -12,6 +12,7 @@ Prior to the running a docker container (see next section), the project director
 ├── Dockerfile
 ├── Geo_data
 │   ├── Crop_Eurasia
+│   ├── FAOSTAT
 │   └── boundary
 ├── README.md
 ├── environments
@@ -24,7 +25,6 @@ Prior to the running a docker container (see next section), the project director
 │   ├── notebook_crop.ipynb
 │   └── notebook_yield.ipynb
 └── src
-    ├── __pycache__
     ├── load_data.py
     ├── models
     ├── plotting.py

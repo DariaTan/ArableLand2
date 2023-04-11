@@ -193,9 +193,9 @@ def plot_trend_global(path, model, params_xgbс, y_baseline, **kwargs):
     # y_baseline = kwargs.get('y', 0)
     proba = kwargs.get('proba', 0)
 
-    water = rasterio.open(os.path.join(path, "/Crop_Eurasia", "water_mask.tif"))
+    water = rasterio.open(os.path.join(path, "Crop_Eurasia", "water_mask.tif"))
     mask = water.read(1)
-    
+
     fig, ax = plt.subplots(figsize=(60, 25))
     if type(proba) == int:
         # y_pred = model.model(**params_xgbс).predict_proba(X)[:,1]
@@ -275,11 +275,11 @@ def plot_trend(model_name1, model_name2,
 
         year = str(year)
         
-        raster1_proba = rasterio.open(os.path.join(path_pics + model_name1,
+        raster1_proba = rasterio.open(os.path.join(path_pics, model_name1,
                                                    f"changes_proba_{year}_{country_name}.tif"))
-        raster2_proba = rasterio.open(os.path.join(path_pics + model_name2,
+        raster2_proba = rasterio.open(os.path.join(path_pics, model_name2,
                                                    f"changes_proba_{year}_{country_name}.tif"))
-        raster2 = rasterio.open(os.path.join(path_pics + model_name2,
+        raster2 = rasterio.open(os.path.join(path_pics,  model_name2,
                                              f"changes_{year}_{country_name}.tif"))
 
         _, counts = np.unique(raster2.read(), return_counts=True)
@@ -386,6 +386,9 @@ def plot_shap(model, Climate, Elv, LC_feature, LC, years, features):
     # Explain the model's predictions using SHAP
     explainer = shap.Explainer(model)
     shap_values = explainer(X)
+
+    w, h = plt.gcf().get_size_inches()
+    plt.gcf().set_size_inches(w*2, h*2)
 
     # visualize the prediction's explanation
     shap.plots.bar(shap_values, show=False)
