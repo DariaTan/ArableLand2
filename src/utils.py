@@ -44,13 +44,16 @@ def collect_data(Climate, years, LC_feature, Elv, LC, features, verbose=False):
 
     # Sort features to use for X
     features_clim = []
-    flag = False  # if 'lc' feature is in list
+    flag_lc = False  # if 'lc' feature is in list
+    flag_elv = False  # if 'lc' feature is in list
 
     for f in features:
         if ('bio' in f):
             features_clim.append(f)
         elif 'lc' in f:
-            flag = True
+            flag_lc = True
+        elif 'elv' in f:
+            flag_elv = True
 
     # convert dict into np.arrays
     LC_feature_array = np.stack([LC_feature[year] for year in LC_feature.keys()], axis=-1)
@@ -69,10 +72,14 @@ def collect_data(Climate, years, LC_feature, Elv, LC, features, verbose=False):
 
     Climate_array = np.stack([Climate[var] for var in features_clim], axis=-1)
 
-    if flag:
+    if flag_lc and flag_elv:
         X = np.hstack((Climate_array, np.tile(Elv, (len(years), 1)), LC_feature_array))
-    else:
+    elif flag_elv:
         X = np.hstack((Climate_array, np.tile(Elv, (len(years), 1))))
+    elif flag_lc:
+        X = np.hstack((Climate_array, LC_feature_array))
+    else:
+        X = Climate_array
     y = LC_array
 
     if verbose:
@@ -161,22 +168,8 @@ def array2raster(file_name, array, path):
 
     template = rasterio.open(os.path.join(path, "Crop_Eurasia/Climate_future", fn))
     dtype = array.dtype
-    # set data type to save
-    if dtype == "byte":
-        rasterio_dtype = rasterio.unit8
-    elif dtype == "float32":
-        rasterio_dtype = rasterio.float32
-    elif dtype == "float64":
-        rasterio_dtype = rasterio.float64
-    elif dtype == "int16":
-        rasterio_dtype = rasterio.int16
-    elif dtype == "int32":
-        rasterio_dtype = rasterio.int32
-    else:
-        print("Not supported data type.")
-
     with rasterio.open(file_name, 'w', **template.meta) as dest:
-        dest.write(array.astype(rasterio_dtype), 1)
+        dest.write(array.astype(dtype), 1)
 
 
 def avg_future_pred(Climate_future, years_future,
@@ -274,7 +267,7 @@ def changes2raster(clf, model_name, features, Elv,
 
     # Save as tif
     year = str(year_current)
-    
+
     array2raster(os.path.join(folder, f"proba_{year}.tif"),
                  prediction_prob.reshape(h, w), path)
     array2raster(os.path.join(folder, f"changes_proba_{year}.tif"),
@@ -442,7 +435,7 @@ def fert_forecast(Fert, Total_area,
     """
     n_years = kwargs.get('n_years', 10)
     years_future_fert = np.arange(years[-1], years[-1]+n_years)
-    # n_years = x#len(years_future_fert)
+
     fig, ax = plt.subplots(nrows=1, ncols=3, figsize=(60, 20))
     Fert_future = {keys: [] for keys in prefixes}
 
@@ -456,37 +449,44 @@ def fert_forecast(Fert, Total_area,
 
         values_N_diff = values_N[-1] - values_N[-n_years]
         values_N_future = np.copy(values_N[-n_years:]) + values_N_diff
-        ax[0].plot(years, values_N, label=name, color=c)
+        ax[0].plot(years, values_N, label=name, color=c, linewidth=3)
         ax[0].plot(years_future_fert, values_N_future,
-                   marker='.', color=c, linestyle='--')
+                   marker='.', color=c, linestyle='--', linewidth=3)
         Fert_future[prefix].append(values_N_future)
 
         values_P205_diff = values_P205[-1] - values_P205[-n_years]
         values_P2O5_future = np.copy(values_P205[-n_years:]) + values_P205_diff
-        ax[1].plot(years, values_P205, label=name, color=c)
+        ax[1].plot(years, values_P205, label=name, color=c, linewidth=3)
         ax[1].plot(years_future_fert, values_P2O5_future,
-                   marker='.', color=c, linestyle='--')
+                   marker='.', color=c, linestyle='--', linewidth=3)
         Fert_future[prefix].append(values_P2O5_future)
 
         values_K2O_diff = values_K2O[-1] - values_K2O[-n_years]
         values_K2O_future = np.copy(values_K2O[-n_years:]) + values_K2O_diff
-        ax[2].plot(years, values_K2O, label=name, color=c)
+        ax[2].plot(years, values_K2O, label=name, color=c, linewidth=3)
         ax[2].plot(years_future_fert, values_K2O_future,
-                   marker='.', color=c, linestyle='--')
+                   marker='.', color=c, linestyle='--', linewidth=3)
         Fert_future[prefix].append(values_K2O_future)
 
-    ax[0].set_xlabel('Year')
-    ax[1].set_xlabel('Year')
-    ax[2].set_xlabel('Year')
-    ax[0].set_ylabel('kg/ha')
-    ax[1].set_ylabel('kg/ha')
-    ax[2].set_ylabel('kg/ha')
     ax[0].set_title('N')
     ax[1].set_title('P2O5')
     ax[2].set_title('K2O')
-    plt.legend(bbox_to_anchor=(0.35, 0.75), ncol=2)
 
+    for i, ax in enumerate(fig.axes):
+        ax.set_xticklabels(ax.get_xticklabels(), fontsize=44)
+        ax.set_yticklabels(ax.get_yticklabels(), fontsize=44)
+        for label in ax.get_xticklabels()[::2]:
+            label.set_visible(False)
+        for label in ax.get_yticklabels()[::2]:
+            label.set_visible(False)
+
+        ax.set_xlabel('Year', fontsize=50)
+        ax.set_ylabel('kg/ha', fontsize=50)
+
+    plt.legend(bbox_to_anchor=(0.35, 0.75), ncol=2)
+    plt.savefig("fert.jpg", bbox_inches='tight', dpi=300)
     return Fert_future
+
 
 def collect_data_yield(path_faostat, data_production,
                        prefixes, country_names,
@@ -570,7 +570,7 @@ def collect_data_yield(path_faostat, data_production,
                                     const_array_0[0],
                                     const_array_1[0],
                                     const_array_2[0])
-                                    ).astype(float)
+                                  ).astype(float)
                 if year_prod <= years[-3]:
                     Y_train = np.vstack((Y_train, [Yield[prefix][year_prod],
                                                    Yield[prefix][year_prod]*crop_area,

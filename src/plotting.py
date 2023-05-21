@@ -69,7 +69,7 @@ def plot_biovars_dist(dict1, dict2):
     axes = axes.ravel()
 
     n = dict1[bio[0]].shape[0]  # pixels in 1 raster
-
+    
     # Loop over biovariables
     for i, (var, name) in tqdm(enumerate(zip(bio, biovars_names))):
         data = dict1[var][:n].ravel()  # Takes first year only
@@ -175,55 +175,79 @@ def plot_biovars_dist_changed(Climate_train, LC_train, LC_test):
     # Loop over biovariables
     for i, (var, name) in tqdm(enumerate(zip(biovars, biovars_names))):
         sns.histplot(Biovars_train[var][Biovars_train['lc']==1],
-                     label='0--1', color='g', ax=axes[i], alpha=0.8, stat='density', bins=100)
+                     label='0--1', color='g', ax=axes[i], alpha=0.7, stat='density', bins=100)
         sns.histplot(Biovars_train[var][Biovars_train['lc']==-1],
-                     label='1--0', color='r', ax=axes[i], alpha=0.8, stat='density', bins=100)
+                     label='1--0', color='r', ax=axes[i], alpha=0.6, stat='density', bins=100)
 
         axes[i].set_ylabel('Density', fontsize=28)
         axes[i].set_xlabel('{}, {}'.format(name, var), fontsize=28)
-        # axes[i].set_xticklabels(axes[i].get_xmajorticklabels(), fontsize=20)
-
-    # fig.suptitle('Train year climate biovariables distribution among objects changed their class from train to test year')
 
     plt.tight_layout(rect=[0, 0.05, 1, 0.94])
+    plt.savefig("dist.jpg", bbox_inches='tight', dpi=300)
 
 
-def plot_trend_global(path, model, params_xgbс, y_baseline, **kwargs):
+def plot_trend_global(path, path_pics,
+                      model, model_name,
+                      y_baseline, **kwargs):
+    """
+    Plots the global trend of the crop risk map overlaid with the water mask.
+
+    Parameters:
+    --------
+        path: str
+            Path to the folder
+        path_pics: str
+            Path to the folder with images
+        model: object
+            Model
+        model_name: str
+            Name of the model
+        y_baseline: int
+            Baseline values to see difference
+        **kwargs: dict
+            Keyword arguments
+    """
     X = kwargs.get('X', 0)
-    # y_baseline = kwargs.get('y', 0)
     proba = kwargs.get('proba', 0)
 
     water = rasterio.open(os.path.join(path, "Crop_Eurasia", "water_mask.tif"))
-    mask = water.read(1)
 
     fig, ax = plt.subplots(figsize=(60, 25))
     if type(proba) == int:
-        # y_pred = model.model(**params_xgbс).predict_proba(X)[:,1]
         y_pred = model.xgbc_model.predict_proba(X)[:, 1]
 
     else:
         y_pred = proba
 
     prediction = [1 if x >= model.scores['threshold'] else 0 for x in y_pred]
-    # y = y_pred - y_baseline
     y = prediction - y_baseline
 
     # Reshape to correlate with sourse rasters
     y_rect = y.reshape(model.h, model.w)
-    rasterio.plot.show(mask, ax=ax, cmap='Blues')
-    image_hidden = ax.imshow(y_rect,
-                             cmap=my_gradient,
-                             vmin=-1, vmax=1, alpha=0.6)
-    ax.set_axis_off()
-    ax.set_xlim(1100,3000)
-    ax.set_ylim(1150,0)
 
-    # rasterio.plot.show(elv, ax=ax, cmap = plt.cm.terrain)
-    # rasterio.plot.show(y_rect, alpha=0.4, cmap = "bwr_r")
+    utils.array2raster(os.path.join(path_pics, model_name+'.tif'),
+                       y_rect, path)
+
+    # Hidden image for colorbar
+    image_hidden = ax.imshow(y_rect, cmap=my_gradient, vmin=-1, vmax=1)
+
+    # Plot
+    rasterio.plot.show(water, ax=ax, cmap='Blues')
+    data = rasterio.open(os.path.join(path_pics, model_name+'.tif'))
+    rasterio.plot.show(data, ax=ax,
+                       cmap=my_gradient,
+                       vmin=-1, vmax=1, alpha=0.6)
+
+    ax.set_xlim(36, 118)
+    ax.set_ylim(12, 60)
+    ax.set_xlabel('Longitude')
+    ax.set_ylabel('Latitude')
+
+    # Add colorbar
     cax = make_axes_locatable(ax).append_axes("right", size="2%", pad=0.1)
     cbar = fig.colorbar(image_hidden, cax=cax)
-    cbar.ax.set_yticklabels(['Risk', '','','','','','','','Potential'], fontsize=30)
-    plt.show()
+    cbar.ax.set_yticklabels(['Risk', '', '', '', '', '', '', '', 'Potential'],
+                            fontsize=30)
 
 
 def plot_trend(model_name1, model_name2,
@@ -381,29 +405,17 @@ def plot_shap(model, Climate, Elv, LC_feature, LC, years, features):
         shap plot
     """
     # Compose dataset for the model
-    X, _, _, _ = utils.collect_data(Climate, years, LC_feature, Elv, LC, features, verbose=False)
+    X, _, _, _ = utils.collect_data(Climate, years,
+                                    LC_feature, Elv,
+                                    LC, features, verbose=False)
 
     # Explain the model's predictions using SHAP
-    explainer = shap.Explainer(model)
+    explainer = shap.TreeExplainer(model, feature_names=features)
     shap_values = explainer(X)
-
-    w, h = plt.gcf().get_size_inches()
-    plt.gcf().set_size_inches(w*2, h*2)
 
     # visualize the prediction's explanation
     shap.plots.bar(shap_values, show=False)
-
-    # the mean of the predictions' explanations
-    vals = np.abs(shap_values.values).mean(0)
-
-    # sort values
-    imp_feat = [x for _, x in sorted(zip(vals, features))]
-
-    # Add label names to plot
-    ticks = list(np.arange(1, len(features)+1))
-    plt.yticks(ticks=ticks, labels=imp_feat)
-    plt.title('Model with features ' + ', '.join(features))
-    plt.show()
+    plt.savefig("img.jpg", bbox_inches='tight', dpi=300)
 
 
 def plot_changes(path_pics, model, year):
@@ -427,7 +439,7 @@ def plot_changes(path_pics, model, year):
 
     basic = rasterio.open(os.path.join(path_pics, f"{model}", f"changes_proba_{year}.tif"))
     im_hidden = ax.imshow(basic.read(1), cmap=my_gradient, vmin=-1, vmax=1)
-    rasterio.plot.show(basic.read(1), 
+    rasterio.plot.show(basic.read(1),
                        transform=basic.transform,
                        ax=ax, cmap=my_gradient,
                        vmin=-1, vmax=1)

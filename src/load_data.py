@@ -50,7 +50,7 @@ def land_cover(path, year_start, **kwargs):
     LC = {keys: [] for keys in years_feature}
     data = rasterio.open(os.path.join(path, "Crop_Eurasia", "LC_Type2.tif"))
 
-    # Coun bands
+    # Count bands
     n_bands = data.count
     bands = np.arange(1, n_bands + 1)
 
@@ -134,7 +134,7 @@ def climate(path, year_start, **kwargs):
     # Create mask to detect sea areas
     water_raster = rasterio.open(os.path.join(path,
                                               "Crop_Eurasia",
-                                               "water_mask.tif"))
+                                              "water_mask.tif"))
     water_mask = water_raster.read(1) == 1
     w = water_raster.width  # raster width
     h = water_raster.height  # raster height
@@ -178,11 +178,11 @@ def climate(path, year_start, **kwargs):
 
                 fn = scenario + "tmmx_" + ending
                 tmmx = rasterio.open(os.path.join(path_clim, fn))
-                raster_tmmx = tmmx.read(1)
+                raster_tmmx = tmmx.read(1)/10
 
                 fn = scenario + "tmmn_" + ending
                 tmmn = rasterio.open(os.path.join(path_clim, fn))
-                raster_tmmn = tmmn.read(1)
+                raster_tmmn = tmmn.read(1)/10
 
                 fn = scenario + "pr_" + ending
                 pr = rasterio.open(os.path.join(path_clim, fn))
@@ -193,11 +193,11 @@ def climate(path, year_start, **kwargs):
 
                 fn = "tmmx_" + ending
                 tmmx = rasterio.open(os.path.join(path_clim, fn))
-                raster_tmmx = tmmx.read(int(month))
+                raster_tmmx = tmmx.read(int(month))/10
 
                 fn = "tmmn_" + ending
                 tmmn = rasterio.open(os.path.join(path_clim, fn))
-                raster_tmmn = tmmn.read(int(month))
+                raster_tmmn = tmmn.read(int(month))/10
 
                 fn = "pr_" + ending
                 pr = rasterio.open(os.path.join(path_clim, fn))
