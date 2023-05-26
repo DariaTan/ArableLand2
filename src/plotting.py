@@ -7,12 +7,12 @@ import sys
 sys.path.append(os.path.join('..', 'src'))
 import utils, load_data
 
-#Geospatial
+# Geospatial
 import rasterio
 import rasterio.plot
 import fiona
 
-#Visualize
+# Visualize
 import matplotlib
 import matplotlib.pyplot as plt
 import matplotlib.patches as mpatches
@@ -37,6 +37,7 @@ my_gradient = LinearSegmentedColormap.from_list('my_gradient', (
 Elv = load_data.elevation(os.path.join('..', 'Geo_data'))
 h = Elv.shape[0]
 w = Elv.shape[1]
+
 
 def plot_biovars_dist(dict1, dict2):
     """Plots distribution of biovariables comparing 2 climate datasets
@@ -69,14 +70,18 @@ def plot_biovars_dist(dict1, dict2):
     axes = axes.ravel()
 
     n = dict1[bio[0]].shape[0]  # pixels in 1 raster
-    
+
     # Loop over biovariables
     for i, (var, name) in tqdm(enumerate(zip(bio, biovars_names))):
         data = dict1[var][:n].ravel()  # Takes first year only
-        sns.histplot(data, color='y', ax=axes[i], legend='test year', alpha=0.5, bins=100)
+        sns.histplot(data, color='y',
+                     ax=axes[i], legend='test year',
+                     alpha=0.5, bins=100)
 
         data_future = dict2[var][:n].ravel()  # Takes first year only
-        sns.histplot(data_future, color='b', ax=axes[i], legend='future year', alpha=0.5, bins=100)
+        sns.histplot(data_future, color='b',
+                     ax=axes[i], legend='future year',
+                     alpha=0.5, bins=100)
 
         axes[i].title.set_text(name)
 
@@ -94,7 +99,7 @@ def plot_biovars_dist(dict1, dict2):
 
 
 def plot_biovars_dist_changed(Climate_train, LC_train, LC_test):
-    """Plots distribution of biovariables among objects changed their class only
+    """Plots distribution of biovariables among objects changed their class
     Biovariables are taken from 2 climate datasets (1 year from each one)
 
     Parameters:
@@ -136,15 +141,16 @@ def plot_biovars_dist_changed(Climate_train, LC_train, LC_test):
                     #  'Precipitation of Driest Period',
                     #  'Precipitation Seasonality'
                      ]
-    
+
     Climate_train_reshaped = {keys: [] for keys in biovars}
 
     # Take only first year from climate data
     for var in biovars:
-        Climate_train_reshaped[var] = Climate_train[var][:,:,0].reshape(-1)
+        Climate_train_reshaped[var] = Climate_train[var][:, :, 0].reshape(-1)
 
     # Convert to pandas dataframe
-    Biovars_train = pd.DataFrame.from_dict(Climate_train_reshaped, orient='columns',
+    Biovars_train = pd.DataFrame.from_dict(Climate_train_reshaped,
+                                           orient='columns',
                                            dtype=None, columns=None)
 
     # Dataframe with classes
@@ -174,10 +180,12 @@ def plot_biovars_dist_changed(Climate_train, LC_train, LC_test):
 
     # Loop over biovariables
     for i, (var, name) in tqdm(enumerate(zip(biovars, biovars_names))):
-        sns.histplot(Biovars_train[var][Biovars_train['lc']==1],
-                     label='0--1', color='g', ax=axes[i], alpha=0.7, stat='density', bins=100)
-        sns.histplot(Biovars_train[var][Biovars_train['lc']==-1],
-                     label='1--0', color='r', ax=axes[i], alpha=0.6, stat='density', bins=100)
+        sns.histplot(Biovars_train[var][Biovars_train['lc'] == 1],
+                     label='0--1', color='g', ax=axes[i],
+                     alpha=0.7, stat='density', bins=100)
+        sns.histplot(Biovars_train[var][Biovars_train['lc'] == -1],
+                     label='1--0', color='r', ax=axes[i],
+                     alpha=0.6, stat='density', bins=100)
 
         axes[i].set_ylabel('Density', fontsize=28)
         axes[i].set_xlabel('{}, {}'.format(name, var), fontsize=28)
@@ -249,6 +257,10 @@ def plot_trend_global(path, path_pics,
     cbar.ax.set_yticklabels(['Risk', '', '', '', '', '', '', '', 'Potential'],
                             fontsize=30)
 
+    plt.savefig(os.path.join(path_pics, model_name+'.tif'),
+                bbox_inches='tight', dpi=300)
+    plt.show()
+
 
 def plot_trend(model_name1, model_name2,
                prefixes, country_names, 
@@ -291,14 +303,15 @@ def plot_trend(model_name1, model_name2,
                                      "boundary",
                                      f"gadm41_{prefix}_0.shx"), "r") as sf:
             shapes = [feature["geometry"] for feature in sf]
-        patches = [PolygonPatch(shape, edgecolor="black", facecolor="none", linewidth=1) for shape in shapes]
+        patches = [PolygonPatch(shape, edgecolor="black",
+                                acecolor="none", linewidth=1) for shape in shapes]
 
         basic = rasterio.open(os.path.join(path_pics, f"basic_{country_name}.tif"))
         _, counts = np.unique(basic.read(), return_counts=True)
         crop_initial[prefix] = counts[1]
 
         year = str(year)
-        
+
         raster1_proba = rasterio.open(os.path.join(path_pics, model_name1,
                                                    f"changes_proba_{year}_{country_name}.tif"))
         raster2_proba = rasterio.open(os.path.join(path_pics, model_name2,

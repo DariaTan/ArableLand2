@@ -73,9 +73,12 @@ def collect_data(Climate, years, LC_feature, Elv, LC, features, verbose=False):
     Climate_array = np.stack([Climate[var] for var in features_clim], axis=-1)
 
     if flag_lc and flag_elv:
-        X = np.hstack((Climate_array, np.tile(Elv, (len(years), 1)), LC_feature_array))
+        X = np.hstack((Climate_array,
+                       np.tile(Elv, (len(years), 1)),
+                       LC_feature_array))
     elif flag_elv:
-        X = np.hstack((Climate_array, np.tile(Elv, (len(years), 1))))
+        X = np.hstack((Climate_array,
+                       np.tile(Elv, (len(years), 1))))
     elif flag_lc:
         X = np.hstack((Climate_array, LC_feature_array))
     else:
@@ -172,8 +175,9 @@ def array2raster(file_name, array, path):
         dest.write(array.astype(dtype), 1)
 
 
-def avg_future_pred(Climate_future, years_future,
-                    LC_feature, Elv, LC,
+def avg_future_pred(Climate_future,
+                    years_future, LC_feature,
+                    Elv, LC,
                     clf, features):
     """Calculates average future predictions
 
@@ -197,15 +201,29 @@ def avg_future_pred(Climate_future, years_future,
     Returns:
     --------
         prediction_prob: [1d numpy array]
-            Future predictions flattened    
+            Future probability prediction
     """
-    X_future, y_test, h, w = collect_data(Climate_future['CNRM-CM5'],
-                                          years_future,
-                                          LC_feature, Elv,
-                                          LC, features, verbose=False)
-    prediction_prob = clf.predict_proba(X_future)[:, 1]
+    CMIPs = Climate_future.keys()
+    prediction_stack = np.empty([0, Elv.shape[0]*Elv.shape[1]])
 
-    return prediction_prob, y_test, h, w
+    # Loop through each CMIP simulation
+    for item in CMIPs:
+        # Collect data for current simulation
+        X_future, y_test, h, w = collect_data(Climate_future[item],
+                                              years_future,
+                                              LC_feature, Elv,
+                                              LC, features, verbose=False)
+
+        # Make probability prediction for current simulation
+        prediction_prob = clf.predict_proba(X_future)[:, 1]
+
+        # Add current prediction to prediction stack
+        prediction_stack = np.vstack((prediction_stack, prediction_prob))
+
+    # Calculate average probability prediction across all simulations
+    prediction_prob_avg = np.mean(prediction_stack, axis=0).reshape(-1)
+
+    return prediction_prob_avg, y_test, h, w
 
 
 def changes2raster(clf, model_name, features, Elv,
@@ -246,8 +264,9 @@ def changes2raster(clf, model_name, features, Elv,
         three .tif files
     """
     # Compose dataset for the model
-    prediction_prob, y_test, h, w = avg_future_pred(Climate, years,
-                                                    LC_feature, Elv, LC,
+    prediction_prob, y_test, h, w = avg_future_pred(Climate,
+                                                    years, LC_feature,
+                                                    Elv, LC,
                                                     clf, features)
 
     # See the difference between prediction and the baseline

@@ -282,6 +282,48 @@ def climate(path, year_start, **kwargs):
     return Climate, years
 
 
+def production(path, csv_filename, prefixes, country_names, total_area, years):
+    """
+    Loads crops production data from a FAOSTAT .csv file
+
+    Parameters
+    ----------
+    path : str
+        Path to the folder containing the .csv files
+    csv_filename : str
+        .csv file containing with data
+    prefixes : list[str]
+        List of country prefixes
+    country_names : list[str]
+        List of country names
+    total_area : dict
+        Dictionary containing the total area for each country
+    years : list[int]
+        List of years
+
+    Returns
+    -------
+    production : dict
+        Dictionary containing rice production for each country and year
+    """
+    production = np.zeros((0, 5))
+
+    reader = csv.reader(open(os.path.join(path, csv_filename), 'r'))
+    for data in reader:
+        country_prod = data[0]
+        crop_prod = data[1]
+        year_prod = int(data[2])
+        for prefix, country_name in zip(prefixes, country_names):
+            if (country_name in country_prod) & (year_prod in years):
+                crop_area = total_area[prefix][year_prod]['Rice']
+                production = np.vstack((production,
+                                        [float(data[3])/crop_area,
+                                         float(data[3]), prefix,
+                                         year_prod,
+                                         crop_prod]))
+    return production
+
+
 def arable_area(
     path, csv_arable, csv_arable_crops, prefixes, country_names, years, crops
 ):
