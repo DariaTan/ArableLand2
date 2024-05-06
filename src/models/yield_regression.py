@@ -5,9 +5,8 @@ from sklearn.metrics import mean_absolute_percentage_error
 class regression():
     """Class including XGBRegression model and some methods relating to it
     """
-    def __init__(self):
-        self.xgbr_model = xgboost.XGBRegressor()
-
+    def __init__(self, n_estimators):
+        self.xgbr_model = xgboost.XGBRegressor(n_estimators = n_estimators)
     def fit(self, X_train, Y_train):
         self.xgbr_model.fit(X_train, Y_train)
         return self.xgbr_model

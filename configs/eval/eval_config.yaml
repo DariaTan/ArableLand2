@@ -1,0 +1,41 @@
+path_pics: '/app/data/03-results/'
+model_pickle: '/app/data/02-models/'
+
+# Define countries and their prefixes
+country_names: [
+                # 'Azerbaijan',
+                'Bangladesh',
+                'Cambodia',
+                'Japan',
+                'Indonesia',
+                # 'Kazakhstan',
+                # 'Kyrgyzstan',
+                'Lao PDR',
+                'Malaysia',
+                'Myanmar',
+                'Philippines',
+                'Korea',
+                # 'Turkey', 
+                'Thailand',
+                # 'Uzbekistan',
+                'Viet Nam'
+                ]
+
+prefixes: [
+            # 'AZE',
+            'BGD',
+            'KHM', 
+            'JPN',
+            'IDN',
+            # 'KAZ',
+            # 'KGZ',
+            'LAO',
+            'MYS',
+            'MMR',
+            'PHL',
+            'KOR',
+            # 'TUR',
+            'THA',
+            # 'UZB',
+            'VNM'
+            ]

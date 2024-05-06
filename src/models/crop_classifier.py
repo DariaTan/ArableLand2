@@ -1,8 +1,18 @@
 from xgboost import XGBClassifier
-from sklearn.model_selection import StratifiedKFold, GridSearchCV
-
-import utils
 import pickle
+import sys, os
+import numpy as np
+
+from sklearn.tree import DecisionTreeClassifier
+from sklearn.linear_model import LogisticRegression
+from sklearn.ensemble import AdaBoostClassifier, RandomForestClassifier
+from sklearn.naive_bayes import GaussianNB
+from sklearn.neural_network import MLPClassifier
+# from catboost import CatboostClassifier
+from sklearn.model_selection import GridSearchCV
+
+sys.path.append(os.path.dirname(os.getcwd()))
+from src import utils
 
 
 class classifier():
@@ -63,15 +73,57 @@ class classifier():
         self.features = features
         return self.X_train, self.y_train, self.X_test, self.y_test, self.features, self.h, self.w
 
-    def fit_classifier(self):
+    def fit_classifier(self, model_path, type):
         """Fits the model if .pkl file doesn't exist
 
         Returns:
         --------
             self.xgbc_model.fit
         """
+        rewrite=False
         if self.loaded_model is None:
-            return self.xgbc_model.fit(self.X_train, self.y_train)
+            if type=="XGB":
+                rewrite=True
+                self.xgbc_model.fit(self.X_train, self.y_train, verbose=3)
+            elif type=="all":
+                names = [
+                        # "Logistic Regression",
+                        # "Random Forest",
+                        # "Naive Bayes",
+                        # "MLP Classifier",
+                        "AdaBoost",
+                        # "CatBoost"
+                    ]
+                classifiers = [
+                        # LogisticRegression(),
+                        # RandomForestClassifier(),
+                        # GaussianNB(),
+                        # MLPClassifier(),
+                        AdaBoostClassifier(estimator=DecisionTreeClassifier()),
+                        # CatboostClassifier()
+                    ]
+                params = [
+                    # {"C":np.logspace(-3,3,7), "penalty":["l1","l2"]},
+                    # {'n_estimators':[20, 100], 'max_depth':[2,3]},
+                    # {'var_smoothing': np.logspace(0,-9, num=10)},
+                    # {'solver': ['adam'], 'max_iter': [1000], 'alpha': [0.1, 0.001]},
+                    {'n_estimators':[20], 'algorithm': ["SAMME"], 'learning_rate':[0.01,0.1]}#'base_estimator__max_depth':[2,4], 'n_estimators':[20], },
+                ]
+                for name, param, clf in zip(names, params, classifiers):
+                    print(name)
+                    gs = GridSearchCV(
+                        estimator=clf,
+                        param_grid=param,
+                        scoring='f1')
+                    self.xgbc_model = gs.fit(self.X_train, self.y_train)
+                    self.scores()
+            else:
+                print("Set type to xgb or all")
+            if rewrite:
+                with open(model_path, "wb") as fp:
+                    pickle.dump(self.xgbc_model, fp)
+                print("Model saved")
+                self.scores()
 
     def scores(self):
         """Calculates scores of the model on test data
@@ -82,12 +134,23 @@ class classifier():
             Dictionary with model metrics
         """
         self.scores = utils.xgbc_scores_binary(self.xgbc_model, 
-                                               self.X_test, self.y_test)
+                                                self.X_test, self.y_test)
         print('Model with features', self.features)
+        
+        # with open(f'{}.txt', 'w') as file:
+        #     file.write(pickle.dumps(self.scores))
         for k, v in self.scores.items():
             print(k, '=', v)
+            
+        # print("\nBaseline")
+        # self.scores_baseline = utils.xgbc_scores_binary(self.xgbc_model, 
+        #                                        self.X_test, self.y_test,
+        #                                        baseline=True)
+        # for k, v in self.scores_baseline.items():
+        #     print(k, '=', v)
         return self.scores
-
+    
+    
     def save(self, filepath, rewrite=False):
         """
         Saves prefitted model to .pkl file
@@ -97,8 +160,6 @@ class classifier():
             filepath: Callable[str]
                 path to save file at
             rewrite: Optional[Bool]
-                flag, if it is True, rewrites
+                flag, if True, rewrites file
         """
-        if rewrite is True:
-            with open(filepath, "wb") as fp:
-                pickle.dump(self.xgbc_model, fp)
+        

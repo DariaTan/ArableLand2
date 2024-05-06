@@ -5,9 +5,9 @@ import numpy as np
 from tqdm import tqdm
 import fiona
 import rasterio
-
-sys.path.append(os.path.join("..", "src"))
-import utils
+import glob
+sys.path.append(os.getcwd())
+from src import utils
 
 
 def elevation(path):
@@ -23,11 +23,11 @@ def elevation(path):
         Elv: 2d numpy array
             Elevation values of objects
     """
-    data = rasterio.open(os.path.join(path, "Crop_Eurasia", "Elv.tif"))
+    data = rasterio.open(os.path.join(path, "Elv.tif"))
     Elv = data.read(1)
     data = None
     return Elv
-
+    
 
 def land_cover(path, year_start, **kwargs):
     """Composes land cover feature
@@ -48,12 +48,16 @@ def land_cover(path, year_start, **kwargs):
     year_stop = kwargs.get("year_stop", year_start + 1)
     years_feature = np.arange(year_start, year_stop)
     LC = {keys: [] for keys in years_feature}
-    data = rasterio.open(os.path.join(path, "Crop_Eurasia", "LC_Type2.tif"))
-
+    data = rasterio.open(os.path.join(path, "LC_Type2.tif"))
+    
     # Count bands
     n_bands = data.count
     bands = np.arange(1, n_bands + 1)
+    data_years = [data.descriptions[band - 1][:4] for band in bands]
 
+    if str(year_start) not in data_years or str(year_stop-1) not in data_years:
+        print("No land cover data for years required. Modify configuration file")
+    
     # Choose the required years (necessary bands) only
     for year in years_feature:
         for band in bands:
@@ -62,9 +66,10 @@ def land_cover(path, year_start, **kwargs):
                 # Switch to binary classification
                 raster = np.where(raster == 12, 1, 0)  # LC_type = 12 is cropland
                 LC[year] = raster
+
     data = None
     print(
-        "Land cover dictionary is collected for {} year(s)".format(len(years_feature))
+        f"Land cover dictionary is collected for {len(years_feature)} year(s)"
     )
     return LC
 
@@ -88,7 +93,7 @@ def land_cover_multi(path, year_start, **kwargs):
     year_stop = kwargs.get("year_stop", year_start + 1)
     years_feature = np.arange(year_start, year_stop)
     LC = {keys: [] for keys in years_feature}
-    data = rasterio.open(os.path.join(path, "Crop_Eurasia", "LC_Type2.tif"))
+    data = rasterio.open(os.path.join(path, "LC_Type2.tif"))
     n_bands = data.count  # number of bands in tif
     bands = np.arange(1, n_bands + 1)
     for year in years_feature:
@@ -133,8 +138,7 @@ def climate(path, year_start, **kwargs):
 
     # Create mask to detect sea areas
     water_raster = rasterio.open(os.path.join(path,
-                                              "Crop_Eurasia",
-                                              "water_mask.tif"))
+                                            "water_mask.tif"))
     water_mask = water_raster.read(1) == 1
     w = water_raster.width  # raster width
     h = water_raster.height  # raster height
@@ -158,14 +162,13 @@ def climate(path, year_start, **kwargs):
 
     # Create pattern to reach the tif by name:
     # Historical data
-    if year_start < 2020:
-        path_clim = os.path.join(path, "Crop_Eurasia", "Climate")
+    if year_start < 2023:
+        path_clim = os.path.join(path, "Climate")
 
     # Future data
     else:
         flag_future = True
-        path_clim = os.path.join(path, "Crop_Eurasia", "Climate_future")
-        # path_clim = os.path.join(path, "Crop_Eurasia", "Climate_future", scenario)
+        path_clim = os.path.join(path, "Climate_future")
 
     # Numbers for specific year
     for year in tqdm(years):
@@ -311,14 +314,14 @@ def production(path, csv_filename, prefixes, country_names, total_area, years):
     reader = csv.reader(open(os.path.join(path, csv_filename), 'r'))
     for data in reader:
         country_prod = data[0]
-        crop_prod = data[1]
-        year_prod = int(data[2])
+        crop_prod = data[2]
+        year_prod = int(data[3])
         for prefix, country_name in zip(prefixes, country_names):
             if (country_name in country_prod) & (year_prod in years):
                 crop_area = total_area[prefix][year_prod]['Rice']
                 production = np.vstack((production,
-                                        [float(data[3])/crop_area,
-                                         float(data[3]), prefix,
+                                        [float(data[5])/crop_area,
+                                         float(data[5]), prefix,
                                          year_prod,
                                          crop_prod]))
     return production
@@ -357,28 +360,40 @@ def arable_area(
     for prefix in prefixes:
         Total_area[prefix] = {keys: {} for keys in years}
 
-    reader1 = csv.reader(open(os.path.join(path, csv_arable), "r"))
-    reader2 = csv.reader(open(os.path.join(path, csv_arable_crops), "r"))
-    for data in reader1:
-        if (data[1] == "Arable land") & (int(data[2]) <= years[-1]):
-            country_prod = data[0]
-            year_prod = int(data[2])
-            crop_prod = float(data[4])
+    with open(os.path.join(path, csv_arable), "r") as file1:
+        reader1 = csv.reader(file1)
+        for data in reader1:
+            if data[1] == "Cropland":
+                try:
+                    year_prod = int(data[2])
+                    if years[0] <= year_prod <= years[-1]:
+                        country_prod = data[0]
+                        crop_prod = float(data[4])
 
-            for prefix, country_name in zip(prefixes, country_names):
-                if country_name in country_prod:
-                    Total_area[prefix][year_prod]["total"] = crop_prod * 1000
+                        for prefix, country_name in zip(prefixes, country_names):
+                            if country_name in country_prod:
+                                Total_area[prefix][year_prod]["total"] = crop_prod * 1000
+                except ValueError:
+                    pass  # Skip rows with non-integer year values
 
-    for data in reader2:
-        country_prod = data[0]
-        crop_type = data[2]
-        crop_prod = int(data[5])
-        year_prod = int(data[3])
-        for prefix, country_name in zip(prefixes, country_names):
-            if (country_name in country_prod) & (year_prod <= years[-1]):
-                for crop in crops:
-                    if crop in crop_type:
-                        Total_area[prefix][year_prod][crop] = crop_prod
+    with open(os.path.join(path, csv_arable_crops), "r") as file2:
+        reader2 = csv.reader(file2)
+        for data in reader2:
+            try:
+                year_prod = int(data[3])
+                if years[0] <= year_prod <= years[-1]:
+                    country_prod = data[0]
+                    crop_type = data[2]
+                    crop_prod = int(data[5])
+
+                    for prefix, country_name in zip(prefixes, country_names):
+                        if country_name in country_prod:
+                            for crop in crops:
+                                if crop in crop_type:
+                                    Total_area[prefix][year_prod].setdefault(crop, 0)
+                                    Total_area[prefix][year_prod][crop] += crop_prod
+            except ValueError:
+                pass  # Skip rows with non-integer year values
 
     return Total_area
 
@@ -405,21 +420,40 @@ def fertilizers(path, csv_fert, prefixes, country_names, years):
     Fert : dict
         Dictionary containing the fertilizers for each country and year
     """
-    Fert = {keys: {} for keys in prefixes}
-
-    for prefix, country_name in zip(prefixes, country_names):
+    Fert = {}
+    for prefix in prefixes:
+        Fert[prefix] = {}
         for year in years:
             Fert[prefix][year] = []
-            reader = csv.reader(open(os.path.join(path, csv_fert), "r"))
-            for data in reader:
-                if country_name in data[0]:
-                    val = data[year - years[0] + 3]
-                    Fert[prefix][year].append(float(val))
+
+    with open(os.path.join(path, csv_fert), 'r', encoding='latin-1') as file:
+        reader = csv.reader(file)
+        for data in reader:
+            if len(data) > 7:
+                year_str = data[7]
+                if year_str.isdigit():
+                    year = int(year_str)
+                    country_prod = data[2]
+                    for prefix, country_name in zip(prefixes, country_names):
+                        if (country_name in country_prod) and (year in years):
+                            val = data[10]
+                            Fert[prefix][year].append(float(val))
+
     return Fert
+
+    # for prefix, country_name in zip(prefixes, country_names):
+    #     for year in years:
+    #         Fert[prefix][year] = []
+    #         reader = csv.reader(open(os.path.join(path, csv_fert), "r"))
+    #         for data in reader:
+    #             if country_name in data[0]:
+    #                 val = data[year - years[0] + 3]
+    #                 Fert[prefix][year].append(float(val))
+    # return Fert
 
 
 def climate_for_yield(
-    path, prefixes, country_names, vars, years, years_future, n_months
+    path, prefixes, country_names, vars, years, years_future, CMIPs
 ):
     """
     Create croped .tiff files for each country
@@ -441,9 +475,6 @@ def climate_for_yield(
         List of years
     years_future : list[int]
         List of years in the future
-    n_months : int
-        Number of months to average over
-
     Returns
     -------
     Climate : dict[country, dict]
@@ -451,32 +482,50 @@ def climate_for_yield(
     """
 
     Climate = {keys: {} for keys in prefixes}
-    path_climate = os.path.join(path, "Crop_Eurasia/Climate", "")
-    path_climate_future = os.path.join(path, "Crop_Eurasia/Climate_future", "")
-    path_econ = os.path.join(path, "Crop_Eurasia/Economics", "")
-
-    for prefix, country_name in zip(prefixes, country_names):
+    path_climate = os.path.join(path, "00-raw", "Asia", "Climate", "")
+    path_climate_future = os.path.join(path, "00-raw", "SEAsia", "Climate_future", "")
+    path_econ = os.path.join(path, "01-prepared", "Economics", "")
+    os.makedirs(path_econ, exist_ok=True)
+    monthes = range(1,13)
+    
+    # Create single multiband climate for this year (stack of 12 months) ###############################Required once for year in future
+    # for var in vars:
+    #     for year in years_future:            
+    #         for model in CMIPs:
+    #             # Create single multiband climate for this year (stack of 12 months)
+    #             files_from = glob.glob(f"{path_climate_future}/{model}_rcp45_{var}_{year}_*_avg.tif")   
+    #             file_to = f"{path_climate_future}/{model}_rcp45_{var}_{year}_avg.tif"
+    #             out_meta = rasterio.open(files_from[0]).meta
+    #             out_meta.update(count = len(monthes))
+                
+    #             with rasterio.open(file_to, 'w', **out_meta) as dest:
+    #                 for band_nr, src in enumerate(files_from, start=1):
+    #                     data = rasterio.open(src).read(1)
+    #                     dest.write(data, band_nr)
+                        
+    for prefix in prefixes:
         # Load administrative border
         with fiona.open(
-            os.path.join(path, "boundary", f"gadm41_{prefix}_0.shx"), "r"
+            os.path.join(path, "00-raw", "boundary", f"gadm41_{prefix}_0.shx"), "r"
         ) as sf:
             shapes = [feature["geometry"] for feature in sf]
 
+        # Historical data
         for year in years:
             Climate[prefix][year] = {keys: [] for keys in vars}
 
             for var in vars:
-                fname = "{}_{}.tif".format(var, year)
+                file_to = f"{var}_{year}.tif"
                 utils.crop_raster(
-                    path_econ + prefix + "_" + fname,
-                    path_climate + fname,
-                    n_months,
+                    path_econ + prefix + "_" + file_to,
+                    path_climate + file_to,
+                    len(monthes),
                     shapes,
-                    path,
+                    f"{path}/00-raw",
                 )
 
                 # Calculate variables over the country
-                with rasterio.open(path_econ + prefix + "_" + fname) as tif:
+                with rasterio.open(path_econ + prefix + "_" + file_to) as tif:
                     for band in np.arange(1, tif.count + 1):
                         if var == "pr":
                             arr = tif.read(int(band)).ravel().astype(np.float32) + 0.001
@@ -489,32 +538,35 @@ def climate_for_yield(
                         variance = np.var(arr)
                         Climate[prefix][year][var].append(av)
                         Climate[prefix][year][var].append(variance)
-
+        # Future data
         for year in years_future:
-            Climate[prefix][year] = {keys: [] for keys in vars}
+            Climate[prefix][year] = {keys: [] for keys in CMIPs}
+            for model in CMIPs:
+                Climate[prefix][year][model] = {keys: [] for keys in vars}
+                for var in vars:
+                    
+                    file_to = f"{path_climate_future}{model}_rcp45_{var}_{year}_avg.tif"
+                    utils.crop_raster(
+                        f"{path_econ}/{prefix}_{var}_{year}.tif",
+                        file_to,
+                        len(monthes),
+                        shapes,
+                        f"{path}/00-raw",
+                    )
 
-            for var in vars:
-                fname = "CNRM-CM5_rcp45_{}_{}.tif".format(var, year)
-                utils.crop_raster(
-                    path_econ + prefix + "_" + fname,
-                    path_climate_future + fname,
-                    n_months,
-                    shapes,
-                    path,
-                )
-
-                # Calculate average over the country
-                with rasterio.open(path_econ + prefix + "_" + fname) as tif:
-                    for band in np.arange(1, tif.count + 1):
-                        if var == "pr":
-                            arr = tif.read(int(band)).ravel().astype(np.float32) + 0.001
-                        else:
-                            arr = (tif.read(int(band)).ravel() / 10 + 273.15).astype(
-                                np.float32
-                            )
-                        mask = arr != 0
-                        av = np.ma.masked_where(~mask, arr).mean()
-                        variance = np.var(arr)
-                        Climate[prefix][year][var].append(av)
-                        Climate[prefix][year][var].append(variance)
+                    # Calculate average over the country
+                    with rasterio.open(f"{path_econ}/{prefix}_{var}_{year}.tif") as tif:
+                        for band in np.arange(1, tif.count + 1):
+                            if var == "pr":
+                                arr = tif.read(int(band)).ravel().astype(np.float32) + 0.001
+                            else:
+                                arr = (tif.read(int(band)).ravel() / 10 + 273.15).astype(
+                                    np.float32
+                                )
+                            mask = arr != 0
+                            av = np.ma.masked_where(~mask, arr).mean()
+                            variance = np.var(arr)
+                            Climate[prefix][year][model][var].append(av)
+                            Climate[prefix][year][model][var].append(variance)
     return Climate
+

@@ -1,0 +1,18 @@
+path_models: '/app/data/02-models'
+
+# Define set of features to use in model
+set: ['bio1', 'bio2', 'bio3', 'bio4', 'bio5', 'bio6', 'bio7', 'bio12', 'bio13', 'bio14', 'bio15', 'elv', 'lc']
+
+# List of CMIP simulations used
+CMIPs: ['CNRM-CM5', 'GFDL-CM3', 'MPI-ESM-MR']
+
+params_xgbс: {
+    'learning_rate': 0.02,
+    'n_estimators': 200,
+    'objective': 'binary:logistic',
+    'nthread': -1,
+    'max_depth': 5,
+    'use_label_encoder':False,
+    'reg_alpha': 0.1,
+    'reg_lambda': 1
+    } 

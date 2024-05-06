@@ -1,0 +1,13 @@
+defaults:
+  - _self_
+  - process: process_config.yaml
+  - train: train_config.yaml
+  - eval: eval_config.yaml
+
+model_name: model_climate_lc_new # model_climate | model_climate_lc
+
+year_start_train: 2007
+year_stop_train: 2019
+
+year_start_test: 2019
+year_start_future: 2027

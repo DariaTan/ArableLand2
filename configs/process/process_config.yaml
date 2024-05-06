@@ -1,0 +1,8 @@
+path_raw_train: '/app/data/00-raw/Asia'
+path_raw_predict: '/app/data/00-raw/SEAsia'
+path_processed: '/app/data/01-prepared'
+path_pics: '/app/data/03-results'
+path_raw: '/app/data/00-raw'
+
+lag: 1 # land cover time lag (years)
+LC_feature_lag: 6 # lag of LC_feature fed to X
